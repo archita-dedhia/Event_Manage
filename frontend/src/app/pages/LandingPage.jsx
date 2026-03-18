@@ -45,7 +45,6 @@ export default function LandingPage() {
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
               <a href="#events" className="text-gray-300 hover:text-white transition-colors">Events</a>
-              <a href="#about" className="text-gray-300 hover:text-white transition-colors">About</a>
               {user ? (
                 <>
                   <Link 
@@ -103,12 +102,6 @@ export default function LandingPage() {
               className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50 transition-all transform hover:scale-105"
             >
               Explore Events
-            </Link>
-            <Link 
-              to={user ? (user.user_type === 'admin' ? '/admin/dashboard' : '/student/dashboard') : '/admin/dashboard'} 
-              className="px-8 py-4 rounded-2xl bg-white/5 backdrop-blur-lg border border-white/10 text-white hover:bg-white/10 transition-all"
-            >
-              Create Event
             </Link>
           </div>
 

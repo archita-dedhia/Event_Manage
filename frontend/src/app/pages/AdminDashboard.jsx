@@ -44,6 +44,12 @@ export default function AdminDashboard() {
     pdf_url: '',
   });
 
+  const [analytics, setAnalytics] = useState({
+    total_events: 0,
+    total_attendees: 0,
+    average_attendance: 0
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -68,22 +74,29 @@ export default function AdminDashboard() {
     setLoading(true);
     try {
       const userId = localStorage.getItem('userId');
-      const [eventsRes, categoriesRes] = await Promise.all([
+      const [eventsRes, categoriesRes, analyticsRes] = await Promise.all([
         fetch(`http://localhost:8000/api/events?organizer_id=${userId}`),
-        fetch('http://localhost:8000/api/categories')
+        fetch('http://localhost:8000/api/categories'),
+        fetch(`http://localhost:8000/api/admin/analytics/${userId}`)
       ]);
+      
       const eventsData = await eventsRes.json();
       const categoriesData = await categoriesRes.json();
+      const analyticsData = await analyticsRes.json();
+      
       setEvents(eventsData);
       setCategories(categoriesData);
+      setAnalytics(analyticsData);
       
       // Ensure category_id is set if it's currently empty
-      setFormData(prev => {
-        if (!prev.category_id && categoriesData.length > 0) {
-          return { ...prev, category_id: categoriesData[0].id };
-        }
-        return prev;
-      });
+      if (categoriesData.length > 0) {
+        setFormData(prev => {
+          if (!prev.category_id) {
+            return { ...prev, category_id: categoriesData[0].id };
+          }
+          return prev;
+        });
+      }
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -108,6 +121,12 @@ export default function AdminDashboard() {
     }
 
     try {
+      const categoryId = parseInt(formData.category_id);
+      if (isNaN(categoryId)) {
+        alert('Please select a valid category');
+        return;
+      }
+
       let imageUrl = formData.image;
       let pdfUrl = formData.pdf_url;
 
@@ -158,6 +177,12 @@ export default function AdminDashboard() {
     }
 
     try {
+      const categoryId = parseInt(formData.category_id);
+      if (isNaN(categoryId)) {
+        alert('Please select a valid category');
+        return;
+      }
+
       let imageUrl = formData.image;
       let pdfUrl = formData.pdf_url;
 
@@ -309,13 +334,20 @@ export default function AdminDashboard() {
           </div>
 
           <nav className="space-y-2">
-            <a 
-              href="#" 
+            <Link 
+              to="/admin/dashboard" 
               className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-600/20 border border-purple-500/30 text-white"
             >
               <LayoutDashboard className="w-5 h-5" />
               <span>Dashboard</span>
-            </a>
+            </Link>
+            <Link 
+              to="/admin/participants" 
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Users className="w-5 h-5" />
+              <span>All Participants</span>
+            </Link>
             <a 
               href="#events" 
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
@@ -367,7 +399,7 @@ export default function AdminDashboard() {
                 <Calendar className="w-10 h-10 text-purple-400" />
                 <TrendingUp className="w-5 h-5 text-green-400" />
               </div>
-              <div className="text-3xl text-white mb-1">{events.length}</div>
+              <div className="text-3xl text-white mb-1">{analytics.total_events}</div>
               <div className="text-sm text-gray-400">Total Events</div>
             </div>
 
@@ -376,7 +408,7 @@ export default function AdminDashboard() {
                 <Users className="w-10 h-10 text-blue-400" />
                 <TrendingUp className="w-5 h-5 text-green-400" />
               </div>
-              <div className="text-3xl text-white mb-1">{totalAttendees}</div>
+              <div className="text-3xl text-white mb-1">{analytics.total_attendees}</div>
               <div className="text-sm text-gray-400">Total Attendees</div>
             </div>
 
@@ -385,7 +417,7 @@ export default function AdminDashboard() {
                 <Activity className="w-10 h-10 text-pink-400" />
                 <TrendingUp className="w-5 h-5 text-green-400" />
               </div>
-              <div className="text-3xl text-white mb-1">{averageAttendance}</div>
+              <div className="text-3xl text-white mb-1">{analytics.average_attendance}</div>
               <div className="text-sm text-gray-400">Avg. Attendance</div>
             </div>
 

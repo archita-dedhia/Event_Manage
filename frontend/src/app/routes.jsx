@@ -6,6 +6,7 @@ import StudentDashboard from "./pages/StudentDashboard.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import ErrorPage from "./pages/ErrorPage.jsx";
+import AllParticipantsPage from "./pages/AllParticipantsPage.jsx";
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,10 @@ export const router = createBrowserRouter([
   {
     path: "/admin/dashboard",
     Component: AdminDashboard,
+  },
+  {
+    path: "/admin/participants",
+    Component: AllParticipantsPage,
   },
   {
     path: "/profile",

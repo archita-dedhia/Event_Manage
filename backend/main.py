@@ -17,7 +17,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5174", "http://127.0.0.1:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -142,9 +142,14 @@ def create_category(payload: schemas.CategoryCreate, db: Session = Depends(get_d
     return category
 
 
-@app.get("/api/categories", response_model=list)
+@app.get("/api/categories", response_model=list[schemas.CategoryOut])
 def list_categories(db: Session = Depends(get_db)):
-    return db.query(models.Category).all()
+    try:
+        categories = db.query(models.Category).all()
+        return categories
+    except Exception as e:
+        print(f"Error fetching categories: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/categories/{category_id}", response_model=schemas.CategoryOut)
@@ -325,21 +330,12 @@ def cancel_booking(participant_id: int, user_id: int, db: Session = Depends(get_
     return {"message": "Booking cancelled successfully", "success": True}
 
 
-@app.get("/api/admin/analytics/{organizer_id}")
-def get_admin_analytics(organizer_id: int, db: Session = Depends(get_db)):
+@app.get("/api/admin/participants/{organizer_id}", response_model=list[schemas.ParticipantDetail])
+def get_all_organizer_participants(organizer_id: int, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.id == organizer_id).first()
     if not user or user.user_type != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can access analytics")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can access participants list")
     
-    events = db.query(models.Event).filter(models.Event.organizer_id == organizer_id).all()
-    total_events = len(events)
-    total_attendees = sum(event.attendees for event in events)
-    average_attendance = total_attendees // total_events if total_events > 0 else 0
-    
-    return {
-        "total_events": total_events,
-        "total_attendees": total_attendees,
-        "average_attendance": average_attendance,
-        "events": events
-    }
+    # Join Participant -> Event to filter by organizer_id
+    return db.query(models.Participant).join(models.Event).filter(models.Event.organizer_id == organizer_id).all()
 
