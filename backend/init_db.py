@@ -175,6 +175,7 @@ def add_sample_events(db_url):
                 title="Spring Music Festival",
                 description="Celebrate the arrival of spring with a day of live music performances.",
                 date="2026-03-20",
+                end_date="2026-03-22",
                 time="11:00",
                 location="Campus Green",
                 category_id=categories.get("Entertainment"),

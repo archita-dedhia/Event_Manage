@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
+import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
 
 export default function StudentDashboard() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { full_name: 'Student' });
@@ -28,11 +29,33 @@ export default function StudentDashboard() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [slideshowItems, setSlideshowItems] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    let interval;
+    if (isAutoPlaying && selectedEvent && selectedEvent.images?.length > 1) {
+      interval = setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % selectedEvent.images.length);
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, selectedEvent]);
 
   useEffect(() => {
     fetchEventsAndBookings();
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const fetchEventsAndBookings = async () => {
     setLoading(true);
@@ -211,9 +234,18 @@ export default function StudentDashboard() {
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
-            <p className="text-gray-400">Discover and book amazing campus events</p>
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
+              <p className="text-gray-400">Discover and book amazing campus events</p>
+            </div>
+            {/* Logo moved to the right */}
+            <div className="flex items-center gap-2 border-l border-white/10 pl-6">
+              <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+            </div>
           </div>
 
           {/* Search Bar */}
@@ -308,6 +340,27 @@ export default function StudentDashboard() {
                                   <Bookmark className="w-3 h-3" />
                                   Booked
                                 </div>
+                              )}
+
+                              {/* Slideshow Trigger Overlay */}
+                              {(event.images?.length > 0 || event.pdf_url) && (
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
+                                    if (event.pdf_url) items.push({ url: event.pdf_url, type: 'pdf' });
+                                    const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
+                                    if (mainImg && !items.some(item => item.url === mainImg)) {
+                                      items.unshift({ url: mainImg, type: 'image' });
+                                    }
+                                    setSlideshowItems(items);
+                                  }}
+                                  className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
+                                >
+                                  <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium">
+                                    View Gallery / Report
+                                  </div>
+                                </button>
                               )}
                             </div>
                             <div className="p-5">
@@ -426,6 +479,24 @@ export default function StudentDashboard() {
         </div>
       </main>
 
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 z-[110] w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-all"
+        >
+          <ChevronRight className="w-6 h-6 -rotate-90" />
+        </button>
+      )}
+
+      {/* Full Screen Slideshow */}
+      {slideshowItems && (
+        <FullScreenSlideshow 
+          items={slideshowItems} 
+          onClose={() => setSlideshowItems(null)} 
+        />
+      )}
+
       {/* Event Details Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -450,23 +521,43 @@ export default function StudentDashboard() {
               <div className="grid lg:grid-cols-2 gap-10">
                 {/* Left Side - Image Slideshow */}
                 <div className="space-y-6">
-                  <div className="relative aspect-video lg:aspect-square rounded-2xl overflow-hidden border border-white/10 group">
+                  <div className="relative aspect-video lg:aspect-square rounded-2xl overflow-hidden border border-white/10 group bg-black/20">
                     <ImageWithFallback 
+                      key={currentImageIndex}
                       src={
                         selectedEvent.images && selectedEvent.images.length > 0
                           ? selectedEvent.images[currentImageIndex].url
                           : (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image])
                       } 
                       alt={selectedEvent.title}
-                      className="w-full h-full object-cover transition-transform duration-500"
+                      className="w-full h-full object-cover transition-all duration-700 animate-in fade-in zoom-in-105"
                     />
                     
+                    {/* Slideshow Trigger Overlay */}
+                    <button 
+                      onClick={() => {
+                        const items = selectedEvent.images?.length > 0 
+                          ? selectedEvent.images.map(img => ({ url: img.url, type: 'image' }))
+                          : [{ url: (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image]), type: 'image' }];
+                        
+                        if (selectedEvent.pdf_url) items.push({ url: selectedEvent.pdf_url, type: 'pdf' });
+                        setSlideshowItems(items);
+                      }}
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
+                    >
+                      <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" />
+                        View Full Screen
+                      </div>
+                    </button>
+
                     {/* Slideshow Controls */}
                     {selectedEvent.images && selectedEvent.images.length > 1 && (
                       <>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            setIsAutoPlaying(false);
                             setCurrentImageIndex((prev) => (prev === 0 ? selectedEvent.images.length - 1 : prev - 1));
                           }}
                           className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
@@ -476,6 +567,7 @@ export default function StudentDashboard() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            setIsAutoPlaying(false);
                             setCurrentImageIndex((prev) => (prev === selectedEvent.images.length - 1 ? 0 : prev + 1));
                           }}
                           className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
@@ -483,14 +575,21 @@ export default function StudentDashboard() {
                           <ChevronRight className="w-6 h-6" />
                         </button>
                         
-                        {/* Dots Indicator */}
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                          {selectedEvent.images.map((_, idx) => (
-                            <div 
-                              key={idx}
-                              className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-purple-500 w-4' : 'bg-white/50'}`}
-                            />
-                          ))}
+                        {/* Auto-play Status & Dots */}
+                        <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-3">
+                          <div className="flex gap-2">
+                            {selectedEvent.images.map((_, idx) => (
+                              <button 
+                                key={idx}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsAutoPlaying(false);
+                                  setCurrentImageIndex(idx);
+                                }}
+                                className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'bg-purple-500 w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'}`}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </>
                     )}
@@ -552,7 +651,15 @@ export default function StudentDashboard() {
                       <Calendar className="w-6 h-6 text-purple-400" />
                       <div>
                         <div className="text-sm text-gray-400 uppercase tracking-wider">Date & Time</div>
-                        <div className="text-white">{selectedEvent.date} • {selectedEvent.time}</div>
+                        <div className="text-white">
+                          {selectedEvent.date}
+                          {selectedEvent.end_date && ` - ${selectedEvent.end_date}`}
+                        </div>
+                        <div className="text-gray-400 text-sm">
+                          {selectedEvent.time}
+                          {selectedEvent.end_time && ` - ${selectedEvent.end_time}`}
+                          {selectedEvent.duration && ` (${selectedEvent.duration})`}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">

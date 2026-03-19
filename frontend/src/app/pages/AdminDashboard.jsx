@@ -16,10 +16,15 @@ import {
   Trash2,
   TrendingUp,
   Activity,
-  User
+  User,
+  ChevronRight,
+  ChevronLeft,
+  X,
+  Globe
 } from 'lucide-react';
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
+import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { full_name: 'Admin' });
@@ -32,10 +37,30 @@ export default function AdminDashboard() {
   const [pdfFile, setPdfFile] = useState(null);
   const [selectedEventParticipants, setSelectedEventParticipants] = useState(null);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [isMultiDay, setIsMultiDay] = useState(false);
+  const [slideshowItems, setSlideshowItems] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+
+  useEffect(() => {
+    let interval;
+    if (isAutoPlaying && selectedEvent && selectedEvent.images?.length > 1) {
+      interval = setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % selectedEvent.images.length);
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, selectedEvent]);
+
   const [formData, setFormData] = useState({
     title: '',
     date: '',
+    end_date: '',
     time: '',
+    end_time: '',
+    duration: '',
     location: '',
     description: '',
     category_id: '',
@@ -53,7 +78,16 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleFileUpload = async (file) => {
     const formData = new FormData();
@@ -111,22 +145,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const checkTimeConflict = (date, time, excludeId = null) => {
-    return events.some(event => 
-      event.date === date && 
-      event.time === time && 
-      event.id !== excludeId
-    );
-  };
-
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     
-    if (checkTimeConflict(formData.date, formData.time)) {
-      alert('Error: Another event is already scheduled for this date and time.');
-      return;
-    }
-
     try {
       const categoryId = parseInt(formData.category_id);
       if (isNaN(categoryId)) {
@@ -156,6 +177,9 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          end_date: isMultiDay ? formData.end_date : null,
+          end_time: formData.end_time || null,
+          duration: formData.duration || null,
           category_id: parseInt(formData.category_id),
           image: imageUrl,
           pdf_url: pdfUrl,
@@ -186,11 +210,6 @@ export default function AdminDashboard() {
   const handleUpdateEvent = async (e) => {
     e.preventDefault();
     
-    if (checkTimeConflict(formData.date, formData.time, editingEvent.id)) {
-      alert('Error: Another event is already scheduled for this date and time.');
-      return;
-    }
-
     try {
       const categoryId = parseInt(formData.category_id);
       if (isNaN(categoryId)) {
@@ -220,6 +239,9 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          end_date: isMultiDay ? formData.end_date : null,
+          end_time: formData.end_time || null,
+          duration: formData.duration || null,
           category_id: parseInt(formData.category_id),
           image: imageUrl,
           pdf_url: pdfUrl,
@@ -271,7 +293,10 @@ export default function AdminDashboard() {
     setFormData({
       title: event.title,
       date: event.date,
+      end_date: event.end_date || '',
       time: event.time,
+      end_time: event.end_time || '',
+      duration: event.duration || '',
       location: event.location,
       description: event.description,
       category_id: event.category_id,
@@ -280,6 +305,7 @@ export default function AdminDashboard() {
       pdf_url: event.pdf_url || '',
       website_url: event.website_url || '',
     });
+    setIsMultiDay(!!event.end_date);
     setShowCreateForm(true);
   };
 
@@ -412,9 +438,18 @@ export default function AdminDashboard() {
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
-            <p className="text-gray-400">Manage and create campus events</p>
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
+              <p className="text-gray-400">Manage and create campus events</p>
+            </div>
+            {/* Logo moved to the right */}
+            <div className="flex items-center gap-2 border-l border-white/10 pl-6">
+              <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+            </div>
           </div>
 
           {/* Stats Cards */}
@@ -488,7 +523,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-sm mb-2 text-gray-300">Date</label>
+                    <label className="block text-sm mb-2 text-gray-300">Start Date</label>
                     <input
                       type="date"
                       value={formData.date}
@@ -498,14 +533,67 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm mb-2 text-gray-300">Time</label>
+                  <div className="flex items-center gap-4 mt-8">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <div className={`w-10 h-5 rounded-full transition-all relative ${isMultiDay ? 'bg-purple-500' : 'bg-white/10'}`}>
+                        <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isMultiDay ? 'left-6' : 'left-1'}`} />
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        className="hidden" 
+                        checked={isMultiDay} 
+                        onChange={() => {
+                          setIsMultiDay(!isMultiDay);
+                          if (isMultiDay) setFormData({ ...formData, end_date: '' });
+                        }} 
+                      />
+                      <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Multi-day Event</span>
+                    </label>
+                  </div>
+
+                  {isMultiDay && (
+                    <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                      <label className="block text-sm mb-2 text-gray-300">End Date</label>
+                      <input
+                        type="date"
+                        value={formData.end_date}
+                        min={formData.date}
+                        onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                        className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                        required
+                      />
+                    </div>
+                  )}
+
+                  <div className={isMultiDay ? "" : "md:col-span-1"}>
+                    <label className="block text-sm mb-2 text-gray-300">Start Time</label>
                     <input
                       type="time"
                       value={formData.time}
                       onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                       required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm mb-2 text-gray-300">End Time</label>
+                    <input
+                      type="time"
+                      value={formData.end_time}
+                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    />
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm mb-2 text-gray-300">Total Duration (e.g. 2 hrs, 3 days)</label>
+                    <input
+                      type="text"
+                      placeholder="Optional duration description"
+                      value={formData.duration}
+                      onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                     />
                   </div>
 
@@ -637,12 +725,28 @@ export default function AdminDashboard() {
                       <tr key={event.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                            <div 
+                              className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 relative group cursor-pointer"
+                              onClick={() => {
+                                const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
+                                const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
+                                if (event.pdf_url) items.push({ url: event.pdf_url, type: 'pdf' });
+                                if (mainImg && !items.some(item => item.url === mainImg)) {
+                                  items.unshift({ url: mainImg, type: 'image' });
+                                }
+                                if (items.length > 0) setSlideshowItems(items);
+                              }}
+                            >
                               <ImageWithFallback 
                                 src={event.image?.startsWith('http') ? event.image : eventImages[event.image]} 
                                 alt={event.title}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                               />
+                              {(event.images?.length > 0 || event.pdf_url) && (
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <Plus className="w-4 h-4 text-white" />
+                                </div>
+                              )}
                             </div>
                             <div>
                               <div className="text-white">{event.title}</div>
@@ -686,8 +790,20 @@ export default function AdminDashboard() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <button 
+                              onClick={() => {
+                                setSelectedEvent(event);
+                                setCurrentImageIndex(0);
+                                setIsAutoPlaying(true);
+                              }}
+                              className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
+                              title="View Details"
+                            >
+                              <Activity className="w-4 h-4" />
+                            </button>
+                            <button 
                               onClick={() => handleEditClick(event)}
                               className="p-2 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                              title="Edit Event"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
@@ -708,6 +824,16 @@ export default function AdminDashboard() {
           </section>
         </div>
       </main>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 z-[110] w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-all"
+        >
+          <ChevronRight className="w-6 h-6 -rotate-90" />
+        </button>
+      )}
 
       {/* Participants Modal */}
       {showParticipantsModal && (
@@ -754,6 +880,221 @@ export default function AdminDashboard() {
                   No students registered for this event yet.
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Screen Slideshow */}
+      {slideshowItems && (
+        <FullScreenSlideshow 
+          items={slideshowItems} 
+          onClose={() => setSlideshowItems(null)} 
+        />
+      )}
+
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-[#0a0d1f]/90 backdrop-blur-sm"
+            onClick={() => setSelectedEvent(null)}
+          ></div>
+          
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-gradient-to-br from-white/10 to-white/[0.02] backdrop-blur-xl border border-white/10 shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-white/10 bg-[#0a0d1f]/50 backdrop-blur-md">
+              <h2 className="text-2xl text-white font-semibold">Event Details</h2>
+              <button 
+                onClick={() => setSelectedEvent(null)}
+                className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 lg:p-10">
+              <div className="grid lg:grid-cols-2 gap-10">
+                {/* Left Side - Image Slideshow */}
+                <div className="space-y-6">
+                  <div className="relative aspect-video lg:aspect-square rounded-2xl overflow-hidden border border-white/10 group bg-black/20">
+                    <ImageWithFallback 
+                      key={currentImageIndex}
+                      src={
+                        selectedEvent.images && selectedEvent.images.length > 0
+                          ? selectedEvent.images[currentImageIndex].url
+                          : (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image])
+                      } 
+                      alt={selectedEvent.title}
+                      className="w-full h-full object-cover transition-all duration-700 animate-in fade-in zoom-in-105"
+                    />
+                    
+                    {/* Slideshow Trigger Overlay */}
+                    <button 
+                      onClick={() => {
+                        const items = selectedEvent.images?.length > 0 
+                          ? selectedEvent.images.map(img => ({ url: img.url, type: 'image' }))
+                          : [{ url: (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image]), type: 'image' }];
+                        
+                        if (selectedEvent.pdf_url) items.push({ url: selectedEvent.pdf_url, type: 'pdf' });
+                        setSlideshowItems(items);
+                      }}
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
+                    >
+                      <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium flex items-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        View Full Screen
+                      </div>
+                    </button>
+
+                    {/* Slideshow Controls */}
+                    {selectedEvent.images && selectedEvent.images.length > 1 && (
+                      <>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsAutoPlaying(false);
+                            setCurrentImageIndex((prev) => (prev === 0 ? selectedEvent.images.length - 1 : prev - 1));
+                          }}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsAutoPlaying(false);
+                            setCurrentImageIndex((prev) => (prev === selectedEvent.images.length - 1 ? 0 : prev + 1));
+                          }}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronRight className="w-6 h-6" />
+                        </button>
+                        
+                        {/* Auto-play Status & Dots */}
+                        <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-3">
+                          <div className="flex gap-2">
+                            {selectedEvent.images.map((_, idx) => (
+                              <button 
+                                key={idx}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsAutoPlaying(false);
+                                  setCurrentImageIndex(idx);
+                                }}
+                                className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'bg-purple-500 w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Attachments & Links */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* PDF Attachment */}
+                    {selectedEvent.pdf_url && (
+                      <a 
+                        href={selectedEvent.pdf_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-purple-500/30 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-5 h-5 text-purple-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium text-sm truncate">Attachment</div>
+                            <div className="text-xs text-gray-500">PDF Document</div>
+                          </div>
+                        </div>
+                      </a>
+                    )}
+
+                    {/* Website Link */}
+                    {selectedEvent.website_url && (
+                      <a 
+                        href={selectedEvent.website_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-blue-500/30 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                            <Globe className="w-5 h-5 text-blue-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium text-sm truncate">Website</div>
+                            <div className="text-xs text-gray-500">External Link</div>
+                          </div>
+                        </div>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Side - Content */}
+                <div className="space-y-8">
+                  <div>
+                    <span className="px-4 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs font-medium text-purple-400 uppercase tracking-wider mb-4 inline-block">
+                      {categories.find(c => c.id === selectedEvent.category_id)?.name || 'Event'}
+                    </span>
+                    <h3 className="text-4xl font-bold text-white mb-4">{selectedEvent.title}</h3>
+                    <p className="text-gray-400 leading-relaxed text-lg">
+                      {selectedEvent.description}
+                    </p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-6">
+                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/20">
+                        <Calendar className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Date & Time</div>
+                        <div className="text-white font-medium">
+                          {selectedEvent.date}
+                          {selectedEvent.end_date && ` - ${selectedEvent.end_date}`}
+                        </div>
+                        <div className="text-gray-400 text-sm">
+                          {selectedEvent.time}
+                          {selectedEvent.end_time && ` - ${selectedEvent.end_time}`}
+                          {selectedEvent.duration && ` (${selectedEvent.duration})`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/20">
+                        <MapPin className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <div className="text-gray-500 text-xs uppercase tracking-wider font-semibold">Location</div>
+                        <div className="text-white font-medium truncate max-w-[150px]">{selectedEvent.location}</div>
+                        <div className="text-gray-400 text-sm">Campus Map</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-purple-400" />
+                        <span className="text-white font-medium">Attendance</span>
+                      </div>
+                      <span className="text-gray-400 text-sm">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-white/5 overflow-hidden p-0.5 border border-white/10">
+                      <div 
+                        className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-purple-600 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                        style={{ width: `${Math.min((selectedEvent.attendees / selectedEvent.capacity) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

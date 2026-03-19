@@ -3,10 +3,12 @@ import { Link } from 'react-router';
 import { Calendar, Users, MapPin, Sparkles, Zap, Shield, FileText, X, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
+import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
 
 export default function LandingPage() {
   console.log('LandingPage rendered');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [slideshowItems, setSlideshowItems] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -14,10 +16,31 @@ export default function LandingPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchDate, setSearchDate] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    let interval;
+    if (isAutoPlaying && selectedEvent && selectedEvent.images?.length > 1) {
+      interval = setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % selectedEvent.images.length);
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, selectedEvent]);
 
   useEffect(() => {
     fetchEvents();
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -55,13 +78,17 @@ export default function LandingPage() {
   };
 
   const filteredEvents = events.filter(event => {
+    // Include events that are today or in the future
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isUpcoming = eventDate >= today;
+    
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           event.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDate = !searchDate || event.date === searchDate;
-    return matchesSearch && matchesDate;
+    return isUpcoming && matchesSearch && matchesDate;
   });
-
-  const featuredEvents = filteredEvents.slice(0, 6);
 
   return (
     <div className="min-h-screen bg-[#0a0d1f]">
@@ -69,15 +96,13 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-[#0a0d1f]/80 border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-xl text-white tracking-tight">CampusEvents</span>
-            </div>
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
               <a href="#events" className="text-gray-300 hover:text-white transition-colors">Events</a>
+              <Link to="/past-events" className="text-gray-300 hover:text-white transition-colors">Past Events</Link>
+            </div>
+            
+            <div className="flex items-center gap-6">
               {user ? (
                 <>
                   <Link 
@@ -98,19 +123,35 @@ export default function LandingPage() {
                   </button>
                 </>
               ) : (
-                <>
-                  <Link to="/login" className="px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-colors">
-                    Login
-                  </Link>
-                  <Link to="/signup" className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg hover:shadow-purple-500/50 transition-all">
+                <div className="flex items-center gap-4">
+                  <Link to="/login" className="text-gray-300 hover:text-white transition-colors">Login</Link>
+                  <Link to="/signup" className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-medium hover:opacity-90 transition-all shadow-lg shadow-purple-500/20">
                     Get Started
                   </Link>
-                </>
+                </div>
               )}
+
+              {/* Logo moved to the right */}
+              <div className="flex items-center gap-2 border-l border-white/10 pl-6">
+                <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-white" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </nav>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 z-50 w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-all"
+        >
+          <ChevronRight className="w-6 h-6 -rotate-90" />
+        </button>
+      )}
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-6">
@@ -234,24 +275,51 @@ export default function LandingPage() {
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
             </div>
-          ) : featuredEvents.length > 0 ? (
+          ) : filteredEvents.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredEvents.map((event) => (
+              {filteredEvents.map((event) => (
                 <div 
                   key={event.id}
-                  className="group rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 overflow-hidden hover:border-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/20 hover:transform hover:scale-[1.02]"
+                  onClick={() => {
+                    setSelectedEvent(event);
+                    setCurrentImageIndex(0);
+                  }}
+                  className="group rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 overflow-hidden hover:border-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/20 hover:transform hover:scale-[1.02] cursor-pointer"
                 >
-                  <div className="aspect-video overflow-hidden">
+                  <div className="aspect-video relative overflow-hidden">
                     <ImageWithFallback 
                       src={event.image?.startsWith('http') ? event.image : eventImages[event.image]} 
                       alt={event.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />
-                  </div>
-                  <div className="p-6">
-                    <div className="inline-block px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 mb-3">
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a0d1f] via-transparent to-transparent opacity-60"></div>
+                    
+                    {/* Slideshow Trigger Overlay */}
+                    {(event.images?.length > 0 || event.pdf_url) && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
+                          if (event.pdf_url) items.push({ url: event.pdf_url, type: 'pdf' });
+                          const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
+                          if (mainImg && !items.some(item => item.url === mainImg)) {
+                            items.unshift({ url: mainImg, type: 'image' });
+                          }
+                          setSlideshowItems(items);
+                        }}
+                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
+                      >
+                        <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium">
+                          View Gallery / Report
+                        </div>
+                      </button>
+                    )}
+
+                    <div className="absolute top-4 left-4 px-4 py-1 rounded-full bg-purple-500/20 backdrop-blur-md border border-purple-500/30 text-xs font-medium text-purple-300">
                       {event.category?.name || 'General'}
                     </div>
+                  </div>
+                  <div className="p-6">
                     <h3 className="text-xl mb-3 text-white line-clamp-1">{event.title}</h3>
                     <div className="space-y-2 mb-4">
                       <div className="flex items-center gap-2 text-gray-400 text-sm">
@@ -288,6 +356,14 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Full Screen Slideshow */}
+      {slideshowItems && (
+        <FullScreenSlideshow 
+          items={slideshowItems} 
+          onClose={() => setSlideshowItems(null)} 
+        />
+      )}
+
       {/* Event Details Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
@@ -312,23 +388,43 @@ export default function LandingPage() {
               <div className="grid lg:grid-cols-2 gap-10">
                 {/* Left Side - Image Slideshow */}
                 <div className="space-y-6">
-                  <div className="relative aspect-video lg:aspect-square rounded-2xl overflow-hidden border border-white/10 group">
+                  <div className="relative aspect-video lg:aspect-square rounded-2xl overflow-hidden border border-white/10 group bg-black/20">
                     <ImageWithFallback 
+                      key={currentImageIndex}
                       src={
                         selectedEvent.images && selectedEvent.images.length > 0
                           ? selectedEvent.images[currentImageIndex].url
                           : (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image])
                       } 
                       alt={selectedEvent.title}
-                      className="w-full h-full object-cover transition-transform duration-500"
+                      className="w-full h-full object-cover transition-all duration-700 animate-in fade-in zoom-in-105"
                     />
                     
+                    {/* Slideshow Trigger Overlay */}
+                    <button 
+                      onClick={() => {
+                        const items = selectedEvent.images?.length > 0 
+                          ? selectedEvent.images.map(img => ({ url: img.url, type: 'image' }))
+                          : [{ url: (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image]), type: 'image' }];
+                        
+                        if (selectedEvent.pdf_url) items.push({ url: selectedEvent.pdf_url, type: 'pdf' });
+                        setSlideshowItems(items);
+                      }}
+                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
+                    >
+                      <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" />
+                        View Full Screen
+                      </div>
+                    </button>
+
                     {/* Slideshow Controls */}
                     {selectedEvent.images && selectedEvent.images.length > 1 && (
                       <>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            setIsAutoPlaying(false);
                             setCurrentImageIndex((prev) => (prev === 0 ? selectedEvent.images.length - 1 : prev - 1));
                           }}
                           className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
@@ -338,6 +434,7 @@ export default function LandingPage() {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
+                            setIsAutoPlaying(false);
                             setCurrentImageIndex((prev) => (prev === selectedEvent.images.length - 1 ? 0 : prev + 1));
                           }}
                           className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
@@ -345,14 +442,21 @@ export default function LandingPage() {
                           <ChevronRight className="w-6 h-6" />
                         </button>
                         
-                        {/* Dots Indicator */}
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                          {selectedEvent.images.map((_, idx) => (
-                            <div 
-                              key={idx}
-                              className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-purple-500 w-4' : 'bg-white/50'}`}
-                            />
-                          ))}
+                        {/* Auto-play Status & Dots */}
+                        <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-3">
+                          <div className="flex gap-2">
+                            {selectedEvent.images.map((_, idx) => (
+                              <button 
+                                key={idx}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIsAutoPlaying(false);
+                                  setCurrentImageIndex(idx);
+                                }}
+                                className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'bg-purple-500 w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'}`}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </>
                     )}
@@ -414,7 +518,15 @@ export default function LandingPage() {
                       <Calendar className="w-6 h-6 text-purple-400" />
                       <div>
                         <div className="text-sm text-gray-400 uppercase tracking-wider">Date & Time</div>
-                        <div className="text-white">{selectedEvent.date} • {selectedEvent.time}</div>
+                        <div className="text-white">
+                          {selectedEvent.date}
+                          {selectedEvent.end_date && ` - ${selectedEvent.end_date}`}
+                        </div>
+                        <div className="text-gray-400 text-sm">
+                          {selectedEvent.time}
+                          {selectedEvent.end_time && ` - ${selectedEvent.end_time}`}
+                          {selectedEvent.duration && ` (${selectedEvent.duration})`}
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">

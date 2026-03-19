@@ -11,7 +11,8 @@ import {
   Filter,
   User as UserIcon,
   LayoutDashboard,
-  LogOut
+  LogOut,
+  ChevronRight
 } from 'lucide-react';
 
 export default function AllParticipantsPage() {
@@ -20,10 +21,20 @@ export default function AllParticipantsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [user] = useState(JSON.parse(localStorage.getItem('user')) || null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     fetchParticipants();
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const fetchParticipants = async () => {
     try {
@@ -106,16 +117,26 @@ export default function AllParticipantsPage() {
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
-          <div className="mb-8">
-            <Link 
-              to="/admin/dashboard" 
-              className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to dashboard
-            </Link>
-            <h1 className="text-3xl text-white font-bold">All Event Participants</h1>
-            <p className="text-gray-400">View and search through all students registered for your events</p>
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <Link 
+                to="/admin/dashboard" 
+                className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to dashboard
+              </Link>
+              <h1 className="text-3xl text-white font-bold">All Event Participants</h1>
+              <p className="text-gray-400">View and search through all students registered for your events</p>
+            </div>
+            
+            {/* Logo moved to the right */}
+            <div className="flex items-center gap-2 border-l border-white/10 pl-6">
+              <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+            </div>
           </div>
 
           {/* Filters & Search */}
@@ -202,6 +223,16 @@ export default function AllParticipantsPage() {
           </div>
         </div>
       </main>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 z-[110] w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-all"
+        >
+          <ChevronRight className="w-6 h-6 -rotate-90" />
+        </button>
+      )}
     </div>
   );
 }

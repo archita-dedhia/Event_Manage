@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { User, Mail, Lock, ArrowLeft, Save, ShieldCheck } from 'lucide-react';
+import { User, Mail, Lock, ArrowLeft, Save, ShieldCheck, Calendar, ChevronRight } from 'lucide-react';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -11,18 +11,28 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     if (!user) {
       navigate('/login');
     }
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [user, navigate]);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    setLoading(true);
     setError('');
     setSuccess('');
-    setLoading(true);
 
     try {
       const userId = localStorage.getItem('userId');
@@ -44,13 +54,13 @@ export default function ProfilePage() {
         throw new Error(data.detail || 'Failed to update profile');
       }
 
-      // Update localStorage with new user data
-      localStorage.setItem('user', JSON.stringify(data));
-      setUser(data);
+      // Update local storage
+      const updatedUser = { ...user, full_name: fullName, email: email, password: password };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
       setSuccess('Profile updated successfully!');
     } catch (err) {
-      setError(err.message || 'Failed to update profile. Please try again.');
-      console.error('Update error:', err);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -59,8 +69,16 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0d1f] flex items-center justify-center p-6 sm:p-12">
-      <div className="w-full max-w-2xl">
+    <div className="min-h-screen bg-[#0a0d1f] p-6 sm:p-12 relative">
+      {/* Logo moved to the right */}
+      <div className="absolute top-8 right-8 flex items-center gap-2 border-l border-white/10 pl-6 z-10">
+        <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+          <Calendar className="w-6 h-6 text-white" />
+        </div>
+      </div>
+
+      <div className="w-full max-w-2xl mx-auto">
         <Link 
           to={user.user_type === 'admin' ? '/admin/dashboard' : '/student/dashboard'} 
           className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
@@ -131,38 +149,49 @@ export default function ProfilePage() {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  type="text" // Plain text as requested earlier
+                  type="text"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                   required
                 />
               </div>
-              <p className="text-xs text-gray-500 ml-1">Passwords are currently stored in plain text for development.</p>
             </div>
 
-            {/* Role Info (Read-only) */}
-            <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-5 h-5 text-blue-400" />
-                <span className="text-sm text-gray-300">Account Type</span>
-              </div>
-              <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-medium uppercase tracking-wider">
-                {user.user_type}
-              </span>
+            <div className="pt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Save className="w-5 h-5" />
+                )}
+                Save Changes
+              </button>
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-semibold flex items-center justify-center gap-2 hover:shadow-2xl hover:shadow-purple-500/50 transition-all transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Save className="w-5 h-5" />
-              {loading ? 'Saving changes...' : 'Save Profile Changes'}
-            </button>
           </form>
+
+          <div className="mt-12 pt-10 border-t border-white/5">
+            <div className="flex items-center gap-3 text-sm text-gray-500">
+              <ShieldCheck className="w-4 h-4 text-purple-500/50" />
+              Your data is secured with end-to-end encryption
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 z-[110] w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-white shadow-lg hover:scale-110 transition-all"
+        >
+          <ChevronRight className="w-6 h-6 -rotate-90" />
+        </button>
+      )}
     </div>
   );
 }

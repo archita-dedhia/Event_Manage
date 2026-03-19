@@ -82,7 +82,15 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0d1f] flex">
+    <div className="min-h-screen bg-[#0a0d1f] flex relative">
+      {/* Logo moved to the top right */}
+      <div className="absolute top-8 right-8 flex items-center gap-2 border-l border-white/10 pl-6 z-20">
+        <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+          <Calendar className="w-6 h-6 text-white" />
+        </div>
+      </div>
+
       {/* Left Side - Illustration/Gradient */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-blue-600 to-purple-900">

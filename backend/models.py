@@ -40,8 +40,11 @@ class Event(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False, index=True)
     description = Column(Text, nullable=False)
-    date = Column(String(50), nullable=False)  # Format: YYYY-MM-DD
-    time = Column(String(50), nullable=False)  # Format: HH:MM
+    date = Column(String(50), nullable=False)  # Start Date: YYYY-MM-DD
+    end_date = Column(String(50), nullable=True)  # Optional End Date: YYYY-MM-DD
+    time = Column(String(50), nullable=False)  # Start Time: HH:MM
+    end_time = Column(String(50), nullable=True)  # Optional End Time: HH:MM
+    duration = Column(String(100), nullable=True)  # e.g., "2 hours", "3 days"
     location = Column(String(255), nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     organizer_id = Column(Integer, ForeignKey("users.id"), nullable=False)

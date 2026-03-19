@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import LandingPage from "./pages/LandingPage.jsx";
+import PastEventsPage from "./pages/PastEventsPage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import SignUpPage from "./pages/SignUpPage.jsx";
 import StudentDashboard from "./pages/StudentDashboard.jsx";
@@ -13,6 +14,10 @@ export const router = createBrowserRouter([
     path: "/",
     Component: LandingPage,
     errorElement: <ErrorPage />,
+  },
+  {
+    path: "/past-events",
+    Component: PastEventsPage,
   },
   {
     path: "/login",

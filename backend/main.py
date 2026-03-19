@@ -3,6 +3,7 @@ import shutil
 from fastapi import Depends, FastAPI, HTTPException, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from .database import get_db
@@ -163,21 +164,23 @@ def get_category(category_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/events", response_model=schemas.EventOut, status_code=status.HTTP_201_CREATED)
 def create_event(payload: schemas.EventCreate, organizer_id: int, db: Session = Depends(get_db)):
-    organizer = db.query(models.User).filter(models.User.id == organizer_id).first()
-    if not organizer or organizer.user_type != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can create events")
+    # 1. Check if user is admin
+    user = db.query(models.User).filter(models.User.id == organizer_id).first()
+    if not user or user.user_type != 'admin':
+        raise HTTPException(status_code=403, detail="Only admins can create events")
     
-    # Check for time conflict: no 2 events at the same time/date
+    # 2. Check for conflicts (same time, same location)
+    # Simple conflict check: same date and start time at same location
     conflict = db.query(models.Event).filter(
-        models.Event.date == payload.date,
-        models.Event.time == payload.time
+        and_(
+            models.Event.date == payload.date,
+            models.Event.time == payload.time,
+            models.Event.location == payload.location
+        )
     ).first()
     if conflict:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Conflict: Event '{conflict.title}' is already scheduled at {payload.date} {payload.time}"
-        )
-    
+        raise HTTPException(status_code=400, detail=f"An event '{conflict.title}' is already scheduled at this time and location")
+
     category = db.query(models.Category).filter(models.Category.id == payload.category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -186,7 +189,10 @@ def create_event(payload: schemas.EventCreate, organizer_id: int, db: Session = 
         title=payload.title,
         description=payload.description,
         date=payload.date,
+        end_date=payload.end_date,
         time=payload.time,
+        end_time=payload.end_time,
+        duration=payload.duration,
         location=payload.location,
         category_id=payload.category_id,
         organizer_id=organizer_id,
@@ -252,14 +258,37 @@ def update_event(event_id: int, payload: schemas.EventUpdate, organizer_id: int,
             detail=f"Conflict: Event '{conflict.title}' is already scheduled at {new_date} {new_time}"
         )
     
+    if payload.date or payload.time or payload.location:
+        # Check for conflict excluding the current event
+        new_date = payload.date if payload.date else event.date
+        new_time = payload.time if payload.time else event.time
+        new_location = payload.location if payload.location else event.location
+        
+        conflict = db.query(models.Event).filter(
+            and_(
+                models.Event.id != event_id,
+                models.Event.date == new_date,
+                models.Event.time == new_time,
+                models.Event.location == new_location
+            )
+        ).first()
+        if conflict:
+            raise HTTPException(status_code=400, detail=f"An event '{conflict.title}' is already scheduled at this time and location")
+
     if payload.title:
         event.title = payload.title
     if payload.description:
         event.description = payload.description
     if payload.date:
         event.date = payload.date
+    if payload.end_date is not None:
+        event.end_date = payload.end_date
     if payload.time:
         event.time = payload.time
+    if payload.end_time is not None:
+        event.end_time = payload.end_time
+    if payload.duration is not None:
+        event.duration = payload.duration
     if payload.location:
         event.location = payload.location
     if payload.category_id:

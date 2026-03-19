@@ -60,8 +60,11 @@ class CategoryOut(BaseModel):
 class EventCreate(BaseModel):
     title: str = Field(..., max_length=255)
     description: str
-    date: str  # YYYY-MM-DD
-    time: str  # HH:MM
+    date: str  # Start Date: YYYY-MM-DD
+    end_date: Optional[str] = None  # Optional End Date: YYYY-MM-DD
+    time: str  # Start Time: HH:MM
+    end_time: Optional[str] = None  # Optional End Time: HH:MM
+    duration: Optional[str] = None  # Optional Duration
     location: str = Field(..., max_length=255)
     category_id: int
     capacity: int = Field(..., ge=1)
@@ -75,7 +78,10 @@ class EventUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     date: Optional[str] = None
+    end_date: Optional[str] = None
     time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration: Optional[str] = None
     location: Optional[str] = None
     category_id: Optional[int] = None
     capacity: Optional[int] = None
@@ -99,7 +105,10 @@ class EventOut(BaseModel):
     title: str
     description: str
     date: str
+    end_date: Optional[str] = None
     time: str
+    end_time: Optional[str] = None
+    duration: Optional[str] = None
     location: str
     category_id: int
     organizer_id: int
