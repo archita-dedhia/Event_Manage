@@ -49,6 +49,7 @@ class Event(Base):
     attendees = Column(Integer, default=0)
     image = Column(String(255), nullable=True)  # Image identifier/URL
     pdf_url = Column(String(255), nullable=True)  # PDF identifier/URL
+    website_url = Column(String(255), nullable=True) #Optional website link
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

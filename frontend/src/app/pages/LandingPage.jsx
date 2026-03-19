@@ -69,7 +69,7 @@ export default function LandingPage() {
                   <Link to="/login" className="px-4 py-2 rounded-lg text-gray-300 hover:text-white transition-colors">
                     Login
                   </Link>
-                  <Link to="/login" className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg hover:shadow-purple-500/50 transition-all">
+                  <Link to="/signup" className="px-6 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg hover:shadow-purple-500/50 transition-all">
                     Get Started
                   </Link>
                 </>
@@ -97,29 +97,16 @@ export default function LandingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link 
-              to={user ? (user.user_type === 'admin' ? '/admin/dashboard' : '/student/dashboard') : '/student/dashboard'} 
+            <a 
+              href="#events" 
               className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50 transition-all transform hover:scale-105"
             >
               Explore Events
-            </Link>
+            </a>
           </div>
 
           {/* Stats */}
-          <div className="mt-20 grid grid-cols-3 gap-8 max-w-2xl mx-auto">
-            <div className="text-center">
-              <div className="text-3xl mb-2 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">500+</div>
-              <div className="text-sm text-gray-400">Events Hosted</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">10k+</div>
-              <div className="text-sm text-gray-400">Active Students</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl mb-2 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">50+</div>
-              <div className="text-sm text-gray-400">Organizations</div>
-            </div>
-          </div>
+          
         </div>
       </section>
 

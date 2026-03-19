@@ -64,6 +64,15 @@ export default function StudentDashboard() {
     return matchesSearch && matchesCategory;
   });
 
+  const groupedEvents = filteredEvents.reduce((acc, event) => {
+    const categoryName = event.category?.name || 'Uncategorized';
+    if (!acc[categoryName]) {
+      acc[categoryName] = [];
+    }
+    acc[categoryName].push(event);
+    return acc;
+  }, {});
+
   const handleBookEvent = async (eventId) => {
     const userId = localStorage.getItem('userId');
     const isBooked = bookedEvents.includes(eventId.toString());
@@ -229,32 +238,14 @@ export default function StudentDashboard() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid md:grid-cols-4 gap-4 mb-8">
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div className="p-6 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20">
               <div className="flex items-center justify-between mb-3">
                 <Calendar className="w-8 h-8 text-purple-400" />
-                <div className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300">Total</div>
+                <div className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300">All</div>
               </div>
               <div className="text-3xl text-white mb-1">{events.length}</div>
               <div className="text-sm text-gray-400">Available Events</div>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20">
-              <div className="flex items-center justify-between mb-3">
-                <Bookmark className="w-8 h-8 text-blue-400" />
-                <div className="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-300">Active</div>
-              </div>
-              <div className="text-3xl text-white mb-1">{myBookings.length}</div>
-              <div className="text-sm text-gray-400">My Bookings</div>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20">
-              <div className="flex items-center justify-between mb-3">
-                <Users className="w-8 h-8 text-pink-400" />
-                <div className="text-xs px-2 py-1 rounded-full bg-pink-500/20 text-pink-300">Live</div>
-              </div>
-              <div className="text-3xl text-white mb-1">{totalAttendees.toLocaleString()}</div>
-              <div className="text-sm text-gray-400">Total Attendees</div>
             </div>
 
             <div className="p-6 rounded-2xl bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20">
@@ -265,83 +256,95 @@ export default function StudentDashboard() {
               <div className="text-3xl text-white mb-1">{getEventsThisWeek()}</div>
               <div className="text-sm text-gray-400">This Week</div>
             </div>
+
+            <div className="p-6 rounded-2xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20">
+              <div className="flex items-center justify-between mb-3">
+                <Bookmark className="w-8 h-8 text-green-400" />
+                <div className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-300">Mine</div>
+              </div>
+              <div className="text-3xl text-white mb-1">{myBookings.length}</div>
+              <div className="text-sm text-gray-400">My Bookings</div>
+            </div>
           </div>
 
           {/* Events Grid */}
           <section id="events" className="mb-12">
-            <h2 className="text-2xl mb-6 text-white">Upcoming Events</h2>
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
               </div>
-            ) : filteredEvents.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredEvents.map((event) => {
-                  const isBooked = bookedEvents.includes(event.id.toString());
-                  return (
-                    <div 
-                      key={event.id}
-                      className="group rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 overflow-hidden hover:border-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/20"
-                    >
-                      <div className="aspect-video overflow-hidden relative">
-                        <ImageWithFallback 
-                          src={event.image?.startsWith('http') ? event.image : eventImages[event.image]} 
-                          alt={event.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                        {isBooked && (
-                          <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-xs flex items-center gap-1">
-                            <Bookmark className="w-3 h-3" />
-                            Booked
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-5">
-                        <div className="inline-block px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 mb-3">
-                          {event.category?.name || 'Uncategorized'}
-                        </div>
-                        <h3 className="text-lg mb-2 text-white line-clamp-1">{event.title}</h3>
-                        <p className="text-sm text-gray-400 mb-4 line-clamp-2">{event.description}</p>
-                        
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center gap-2 text-gray-400 text-xs">
-                            <Calendar className="w-4 h-4 text-purple-400" />
-                            <span>{event.date} • {event.time}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-gray-400 text-xs">
-                            <MapPin className="w-4 h-4 text-blue-400" />
-                            <span>{event.location}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-gray-400 text-xs">
-                            <Users className="w-4 h-4 text-pink-400" />
-                            <span>{event.attendees}/{event.capacity} spots filled</span>
-                          </div>
-                        </div>
+            ) : Object.keys(groupedEvents).length > 0 ? (
+              <div className="space-y-12">
+                {Object.entries(groupedEvents).map(([category, eventsInCategory]) => (
+                  <div key={category}>
+                    <h2 className="text-2xl mb-6 text-white">{category}</h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {eventsInCategory.map((event) => {
+                        const isBooked = bookedEvents.includes(event.id.toString());
+                        return (
+                          <div 
+                            key={event.id}
+                            className="group rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 overflow-hidden hover:border-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/20"
+                          >
+                            <div className="aspect-video overflow-hidden relative">
+                              <ImageWithFallback 
+                                src={event.image?.startsWith('http') ? event.image : eventImages[event.image]} 
+                                alt={event.title}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                              />
+                              {isBooked && (
+                                <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-xs flex items-center gap-1">
+                                  <Bookmark className="w-3 h-3" />
+                                  Booked
+                                </div>
+                              )}
+                            </div>
+                            <div className="p-5">
+                              <h3 className="text-lg mb-2 text-white line-clamp-1">{event.title}</h3>
+                              <p className="text-sm text-gray-400 mb-4 line-clamp-2">{event.description}</p>
+                              
+                              <div className="space-y-2 mb-4">
+                                <div className="flex items-center gap-2 text-gray-400 text-xs">
+                                  <Calendar className="w-4 h-4 text-purple-400" />
+                                  <span>{event.date} • {event.time}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-400 text-xs">
+                                  <MapPin className="w-4 h-4 text-blue-400" />
+                                  <span>{event.location}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-400 text-xs">
+                                  <Users className="w-4 h-4 text-pink-400" />
+                                  <span>{event.attendees}/{event.capacity} spots filled</span>
+                                </div>
+                              </div>
 
-                        {/* Progress Bar */}
-                        <div className="mb-4">
-                          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                            <div 
-                              className="h-full bg-gradient-to-r from-purple-500 to-blue-600 rounded-full"
-                              style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
-                            />
+                              {/* Progress Bar */}
+                              <div className="mb-4">
+                                <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-purple-500 to-blue-600 rounded-full"
+                                    style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <button
+                                onClick={() => handleBookEvent(event.id)}
+                                className={`block w-full py-3 text-center rounded-xl transition-all ${
+                                  isBooked
+                                    ? 'bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30'
+                                    : 'bg-gradient-to-r from-purple-500/10 to-blue-600/10 border border-purple-500/20 text-purple-300 hover:from-purple-500 hover:to-blue-600 hover:text-white hover:shadow-lg'
+                                }`}
+                              >
+                                {isBooked ? 'Booked ✓' : 'Book Now'}
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <button
-                          onClick={() => handleBookEvent(event.id)}
-                          className={`block w-full py-3 text-center rounded-xl transition-all ${
-                            isBooked
-                              ? 'bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30'
-                              : 'bg-gradient-to-r from-purple-500/10 to-blue-600/10 border border-purple-500/20 text-purple-300 hover:from-purple-500 hover:to-blue-600 hover:text-white hover:shadow-lg'
-                          }`}
-                        >
-                          {isBooked ? 'Booked ✓' : 'Book Now'}
-                        </button>
-                      </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="text-center py-20 text-gray-500 bg-white/5 rounded-3xl border border-white/10">

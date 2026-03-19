@@ -21,13 +21,14 @@ from .database import Base
 from .models import User, Category, Event, Participant  # noqa: F401 (import for side effects)
 
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
 def create_database_if_not_exists():
     url_without_db = get_database_url(include_db=False)
     engine = create_engine(url_without_db)
 
     with engine.connect() as conn:
-        # Drop if exists for clean schema updates during development
-        conn.execute(text(f"DROP DATABASE IF EXISTS `{MYSQL_DB}`"))
         conn.execute(
             text(
                 f"CREATE DATABASE IF NOT EXISTS `{MYSQL_DB}` "
@@ -96,19 +97,19 @@ def add_sample_users(db_url):
         users = [
             User(
                 email="admin@campus.edu",
-                password="password123", # Plain text
+                password=pwd_context.hash("password123"),
                 full_name="Admin User",
                 user_type="admin"
             ),
             User(
                 email="student@campus.edu",
-                password="password123", # Plain text
+                password=pwd_context.hash("password123"),
                 full_name="John Student",
                 user_type="student"
             ),
             User(
                 email="student2@campus.edu",
-                password="password123", # Plain text
+                password=pwd_context.hash("password123"),
                 full_name="Jane Doe",
                 user_type="student"
             ),
@@ -132,7 +133,6 @@ def add_sample_users(db_url):
 def add_sample_events(db_url):
     """Add sample events to the database"""
     from sqlalchemy.orm import sessionmaker
-    from datetime import date, time
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=create_engine(db_url))
     db = SessionLocal()
     
@@ -159,80 +159,74 @@ def add_sample_events(db_url):
             Event(
                 title="AI and Future of Work",
                 description="Join us for an insightful session on how AI is shaping the future of various industries.",
-                date=date(2026, 3, 18),
-                time=time(14, 0),
+                date="2026-03-18",
+                time="14:00",
                 location="Auditorium A",
                 category_id=categories.get("Technology"),
                 organizer_id=organizer_id,
                 capacity=200,
                 attendees=156,
                 image="tech-conference",
-                pdf_url=None
             ),
             Event(
                 title="Spring Music Festival",
                 description="Celebrate the arrival of spring with a day of live music performances.",
-                date=date(2026, 3, 20),
-                time=time(11, 0),
+                date="2026-03-20",
+                time="11:00",
                 location="Campus Green",
                 category_id=categories.get("Entertainment"),
                 organizer_id=organizer_id,
                 capacity=1000,
                 attendees=450,
                 image="music-concert",
-                pdf_url=None
             ),
             Event(
                 title="Startup Pitch Competition",
                 description="Witness the next generation of entrepreneurs as they pitch their innovative ideas.",
-                date=date(2026, 4, 20),
-                time=time(16, 30),
+                date="2026-04-20",
+                time="16:30",
                 location="Business School Room 102",
                 category_id=categories.get("Business"),
                 organizer_id=organizer_id,
                 capacity=100,
                 attendees=88,
-                image="business-summit",
-                pdf_url=None
+                image="startup-pitch",
             ),
             Event(
                 title="Photography Workshop",
                 description="Learn the fundamentals of photography from professional photographers.",
-                date=date(2026, 4, 25),
-                time=time(10, 0),
+                date="2026-04-25",
+                time="10:00",
                 location="Art Studio",
                 category_id=categories.get("Workshop"),
                 organizer_id=organizer_id,
                 capacity=30,
                 attendees=25,
-                image="art-workshop",
-                pdf_url=None
+                image="ai-workshop",
             ),
             Event(
                 title="Career Fair 2026",
                 description="Connect with top employers and explore internship and job opportunities.",
-                date=date(2026, 5, 5),
-                time=time(9, 0),
+                date="2026-05-05",
+                time="09:00",
                 location="Main Gymnasium",
                 category_id=categories.get("Career"),
                 organizer_id=organizer_id,
                 capacity=500,
                 attendees=320,
                 image="career-fair",
-                pdf_url=None
             ),
             Event(
                 title="Global Food Festival",
                 description="Experience flavors from around the world at our annual food festival.",
-                date=date(2026, 5, 15),
-                time=time(12, 0),
+                date="2026-05-15",
+                time="12:00",
                 location="Student Union Plaza",
                 category_id=categories.get("Cultural"),
                 organizer_id=organizer_id,
                 capacity=800,
                 attendees=600,
-                image="food-festival",
-                pdf_url=None
+                image="cultural-festival",
             )
         ]
         

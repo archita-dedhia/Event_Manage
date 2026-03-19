@@ -42,6 +42,7 @@ export default function AdminDashboard() {
     capacity: 100,
     image: '',
     pdf_url: '',
+    website_url: '',
   });
 
   const [analytics, setAnalytics] = useState({
@@ -145,7 +146,9 @@ export default function AdminDashboard() {
           ...formData,
           category_id: parseInt(formData.category_id),
           image: imageUrl,
-          pdf_url: pdfUrl
+          pdf_url: pdfUrl,
+          website_url: formData.website_url,
+          website_url: formData.website_url
         }),
       });
 
@@ -235,6 +238,7 @@ export default function AdminDashboard() {
       capacity: 100,
       image: '',
       pdf_url: '',
+      website_url: '',
     });
     setImageFile(null);
     setPdfFile(null);
@@ -254,6 +258,7 @@ export default function AdminDashboard() {
       capacity: event.capacity,
       image: event.image || '',
       pdf_url: event.pdf_url || '',
+      website_url: event.website_url || '',
     });
     setShowCreateForm(true);
   };
@@ -393,7 +398,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
             <div className="p-6 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20">
               <div className="flex items-center justify-between mb-4">
                 <Calendar className="w-10 h-10 text-purple-400" />
@@ -410,15 +415,6 @@ export default function AdminDashboard() {
               </div>
               <div className="text-3xl text-white mb-1">{analytics.total_attendees}</div>
               <div className="text-sm text-gray-400">Total Attendees</div>
-            </div>
-
-            <div className="p-6 rounded-2xl bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20">
-              <div className="flex items-center justify-between mb-4">
-                <Activity className="w-10 h-10 text-pink-400" />
-                <TrendingUp className="w-5 h-5 text-green-400" />
-              </div>
-              <div className="text-3xl text-white mb-1">{analytics.average_attendance}</div>
-              <div className="text-sm text-gray-400">Avg. Attendance</div>
             </div>
 
             <div className="p-6 rounded-2xl bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20">
@@ -458,15 +454,15 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm mb-2 text-gray-300">Category</label>
                     <select
                       value={formData.category_id}
                       onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all appearance-none"
                     >
                       {categories.map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        <option key={cat.id} value={cat.id} className="bg-[#0a0d1f]">{cat.name}</option>
                       ))}
                     </select>
                   </div>
@@ -527,6 +523,17 @@ export default function AdminDashboard() {
                     rows={4}
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all resize-none"
                     required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-2 text-gray-300">Website URL (Optional)</label>
+                  <input
+                    type="url"
+                    value={formData.website_url}
+                    onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
+                    placeholder="https://example.com"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                   />
                 </div>
 
