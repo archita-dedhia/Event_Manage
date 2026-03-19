@@ -10,7 +10,12 @@ import {
   User,
   LogOut,
   Filter,
-  Clock
+  Clock,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Globe
 } from 'lucide-react';
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
@@ -22,6 +27,8 @@ export default function StudentDashboard() {
   const [bookedEvents, setBookedEvents] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     fetchEventsAndBookings();
@@ -33,13 +40,17 @@ export default function StudentDashboard() {
       const userId = localStorage.getItem('userId');
       
       // Fetch all events
-      const eventsRes = await fetch('http://localhost:8000/api/events');
+      const eventsRes = await fetch('http://127.0.0.1:8000/api/events');
+      console.log('Student Dashboard - Events API Response:', eventsRes);
       const eventsData = await eventsRes.json();
+      console.log('Student Dashboard - Events API Data:', eventsData);
       setEvents(eventsData);
 
       // Fetch user's bookings
-      const bookingsRes = await fetch(`http://localhost:8000/api/participants/user/${userId}`);
+      const bookingsRes = await fetch(`http://127.0.0.1:8000/api/participants/user/${userId}`);
+      console.log('Student Dashboard - Bookings API Response:', bookingsRes);
       const bookingsData = await bookingsRes.json();
+      console.log('Student Dashboard - Bookings API Data:', bookingsData);
       setBookedEvents(bookingsData.map(b => b.event_id.toString()));
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -80,12 +91,12 @@ export default function StudentDashboard() {
     try {
       if (isBooked) {
         // Find the participant record to delete
-        const response = await fetch(`http://localhost:8000/api/participants/user/${userId}`);
+        const response = await fetch(`http://127.0.0.1:8000/api/participants/user/${userId}`);
         const bookingsData = await response.json();
         const booking = bookingsData.find(b => b.event_id.toString() === eventId.toString());
         
         if (booking) {
-          const deleteRes = await fetch(`http://localhost:8000/api/participants/${booking.id}?user_id=${userId}`, {
+          const deleteRes = await fetch(`http://127.0.0.1:8000/api/participants/${booking.id}?user_id=${userId}`, {
             method: 'DELETE',
           });
           
@@ -94,7 +105,7 @@ export default function StudentDashboard() {
           }
         }
       } else {
-        const response = await fetch(`http://localhost:8000/api/participants?user_id=${userId}`, {
+        const response = await fetch(`http://127.0.0.1:8000/api/participants?user_id=${userId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ event_id: parseInt(eventId) }),
@@ -108,7 +119,7 @@ export default function StudentDashboard() {
         }
       }
       // Refresh events to update attendee counts
-      const eventsRes = await fetch('http://localhost:8000/api/events');
+      const eventsRes = await fetch('http://127.0.0.1:8000/api/events');
       const eventsData = await eventsRes.json();
       setEvents(eventsData);
     } catch (err) {
@@ -328,16 +339,27 @@ export default function StudentDashboard() {
                                 </div>
                               </div>
                               
-                              <button
-                                onClick={() => handleBookEvent(event.id)}
-                                className={`block w-full py-3 text-center rounded-xl transition-all ${
-                                  isBooked
-                                    ? 'bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30'
-                                    : 'bg-gradient-to-r from-purple-500/10 to-blue-600/10 border border-purple-500/20 text-purple-300 hover:from-purple-500 hover:to-blue-600 hover:text-white hover:shadow-lg'
-                                }`}
-                              >
-                                {isBooked ? 'Booked ✓' : 'Book Now'}
-                              </button>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedEvent(event);
+                                    setCurrentImageIndex(0);
+                                  }}
+                                  className="flex-1 py-3 text-center rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all text-sm"
+                                >
+                                  Details
+                                </button>
+                                <button
+                                  onClick={() => handleBookEvent(event.id)}
+                                  className={`flex-[2] py-3 text-center rounded-xl transition-all text-sm font-medium ${
+                                    isBooked
+                                      ? 'bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30'
+                                      : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg hover:shadow-purple-500/50'
+                                  }`}
+                                >
+                                  {isBooked ? 'Booked ✓' : 'Book Now'}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -403,6 +425,180 @@ export default function StudentDashboard() {
           )}
         </div>
       </main>
+
+      {/* Event Details Modal */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-[#0a0d1f]/90 backdrop-blur-sm"
+            onClick={() => setSelectedEvent(null)}
+          ></div>
+          
+          <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-gradient-to-br from-white/10 to-white/[0.02] backdrop-blur-xl border border-white/10 shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-white/10 bg-[#0a0d1f]/50 backdrop-blur-md">
+              <h2 className="text-2xl text-white font-semibold">Event Details</h2>
+              <button 
+                onClick={() => setSelectedEvent(null)}
+                className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 lg:p-10">
+              <div className="grid lg:grid-cols-2 gap-10">
+                {/* Left Side - Image Slideshow */}
+                <div className="space-y-6">
+                  <div className="relative aspect-video lg:aspect-square rounded-2xl overflow-hidden border border-white/10 group">
+                    <ImageWithFallback 
+                      src={
+                        selectedEvent.images && selectedEvent.images.length > 0
+                          ? selectedEvent.images[currentImageIndex].url
+                          : (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image])
+                      } 
+                      alt={selectedEvent.title}
+                      className="w-full h-full object-cover transition-transform duration-500"
+                    />
+                    
+                    {/* Slideshow Controls */}
+                    {selectedEvent.images && selectedEvent.images.length > 1 && (
+                      <>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex((prev) => (prev === 0 ? selectedEvent.images.length - 1 : prev - 1));
+                          }}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex((prev) => (prev === selectedEvent.images.length - 1 ? 0 : prev + 1));
+                          }}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronRight className="w-6 h-6" />
+                        </button>
+                        
+                        {/* Dots Indicator */}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                          {selectedEvent.images.map((_, idx) => (
+                            <div 
+                              key={idx}
+                              className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-purple-500 w-4' : 'bg-white/50'}`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Attachments & Links */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* PDF Attachment */}
+                    {selectedEvent.pdf_url && (
+                      <a 
+                        href={selectedEvent.pdf_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-purple-500/30 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-5 h-5 text-purple-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium text-sm truncate">Attachment</div>
+                            <div className="text-xs text-gray-500">PDF Document</div>
+                          </div>
+                        </div>
+                      </a>
+                    )}
+
+                    {/* Website Link */}
+                    {selectedEvent.website_url && (
+                      <a 
+                        href={selectedEvent.website_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-blue-500/30 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                            <Globe className="w-5 h-5 text-blue-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium text-sm truncate">Website</div>
+                            <div className="text-xs text-gray-500">Official Link</div>
+                          </div>
+                        </div>
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Side - Info */}
+                <div className="flex flex-col">
+                  <div className="inline-block self-start px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 mb-4">
+                    {selectedEvent.category?.name || 'General'}
+                  </div>
+                  <h3 className="text-3xl lg:text-4xl text-white font-bold mb-6">{selectedEvent.title}</h3>
+                  
+                  <div className="space-y-4 mb-8">
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                      <Calendar className="w-6 h-6 text-purple-400" />
+                      <div>
+                        <div className="text-sm text-gray-400 uppercase tracking-wider">Date & Time</div>
+                        <div className="text-white">{selectedEvent.date} • {selectedEvent.time}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                      <MapPin className="w-6 h-6 text-blue-400" />
+                      <div>
+                        <div className="text-sm text-gray-400 uppercase tracking-wider">Location</div>
+                        <div className="text-white">{selectedEvent.location}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                      <Users className="w-6 h-6 text-pink-400" />
+                      <div>
+                        <div className="text-sm text-gray-400 uppercase tracking-wider">Availability</div>
+                        <div className="text-white">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <h4 className="text-white font-semibold mb-3">About this event</h4>
+                    <p className="text-gray-400 leading-relaxed">
+                      {selectedEvent.description}
+                    </p>
+                  </div>
+
+                  <div className="mt-auto pt-6 border-t border-white/10">
+                    <button
+                      onClick={() => {
+                        handleBookEvent(selectedEvent.id);
+                        setSelectedEvent(null);
+                      }}
+                      className={`block w-full py-4 text-center rounded-2xl font-semibold transition-all transform hover:scale-[1.02] ${
+                        bookedEvents.includes(selectedEvent.id.toString())
+                          ? 'bg-red-500/20 border border-red-500/30 text-red-300'
+                          : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50'
+                      }`}
+                    >
+                      {bookedEvents.includes(selectedEvent.id.toString()) ? 'Cancel Booking' : 'Book This Event'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

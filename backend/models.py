@@ -57,6 +57,19 @@ class Event(Base):
     category = relationship("Category", back_populates="events")
     organizer = relationship("User", back_populates="events_created")
     participants = relationship("Participant", back_populates="event", cascade="all, delete-orphan")
+    images = relationship("EventImage", back_populates="event", cascade="all, delete-orphan")
+
+
+class EventImage(Base):
+    __tablename__ = "event_images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    url = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    event = relationship("Event", back_populates="images")
 
 
 class Participant(Base):

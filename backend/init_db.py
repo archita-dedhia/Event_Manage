@@ -14,14 +14,14 @@ This will:
 """
 
 from sqlalchemy import create_engine, text
-from passlib.context import CryptContext
+
 
 from .config import MYSQL_DB, get_database_url
 from .database import Base
-from .models import User, Category, Event, Participant  # noqa: F401 (import for side effects)
+from .models import User, Category, Event, Participant
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 
 def create_database_if_not_exists():
@@ -41,6 +41,9 @@ def create_database_if_not_exists():
 def create_tables():
     url = get_database_url(include_db=True)
     engine = create_engine(url)
+    print("Dropping all tables...")
+    Base.metadata.drop_all(bind=engine)
+    print("Tables dropped.")
     Base.metadata.create_all(bind=engine)
 
 
@@ -87,7 +90,7 @@ def add_sample_users(db_url):
     
     try:
         # Check if users already exist
-        from .models import User
+
         existing = db.query(User).first()
         if existing:
             print("Users already exist, skipping...")
@@ -97,19 +100,19 @@ def add_sample_users(db_url):
         users = [
             User(
                 email="admin@campus.edu",
-                password=pwd_context.hash("password123"),
+                password="password123",
                 full_name="Admin User",
                 user_type="admin"
             ),
             User(
                 email="student@campus.edu",
-                password=pwd_context.hash("password123"),
+                password="password123",
                 full_name="John Student",
                 user_type="student"
             ),
             User(
                 email="student2@campus.edu",
-                password=pwd_context.hash("password123"),
+                password="password123",
                 full_name="Jane Doe",
                 user_type="student"
             ),

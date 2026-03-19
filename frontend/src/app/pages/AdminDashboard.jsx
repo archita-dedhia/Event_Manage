@@ -28,7 +28,7 @@ export default function AdminDashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]);
   const [pdfFile, setPdfFile] = useState(null);
   const [selectedEventParticipants, setSelectedEventParticipants] = useState(null);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
@@ -59,7 +59,7 @@ export default function AdminDashboard() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const response = await fetch('http://localhost:8000/api/upload', {
+      const response = await fetch('http://127.0.0.1:8000/api/upload', {
         method: 'POST',
         body: formData,
       });
@@ -76,14 +76,20 @@ export default function AdminDashboard() {
     try {
       const userId = localStorage.getItem('userId');
       const [eventsRes, categoriesRes, analyticsRes] = await Promise.all([
-        fetch(`http://localhost:8000/api/events?organizer_id=${userId}`),
-        fetch('http://localhost:8000/api/categories'),
-        fetch(`http://localhost:8000/api/admin/analytics/${userId}`)
+        fetch(`http://127.0.0.1:8000/api/events?organizer_id=${userId}`),
+        fetch('http://127.0.0.1:8000/api/categories'),
+        fetch(`http://127.0.0.1:8000/api/admin/analytics/${userId}`)
       ]);
+      console.log('Admin Dashboard - Events API Response:', eventsRes);
+      console.log('Admin Dashboard - Categories API Response:', categoriesRes);
+      console.log('Admin Dashboard - Analytics API Response:', analyticsRes);
       
       const eventsData = await eventsRes.json();
+      console.log('Admin Dashboard - Events API Data:', eventsData);
       const categoriesData = await categoriesRes.json();
+      console.log('Admin Dashboard - Categories API Data:', categoriesData);
       const analyticsData = await analyticsRes.json();
+      console.log('Admin Dashboard - Analytics API Data:', analyticsData);
       
       setEvents(eventsData);
       setCategories(categoriesData);
@@ -130,16 +136,22 @@ export default function AdminDashboard() {
 
       let imageUrl = formData.image;
       let pdfUrl = formData.pdf_url;
+      let imageUrls = [];
 
-      if (imageFile) {
-        imageUrl = await handleFileUpload(imageFile);
+      if (imageFiles.length > 0) {
+        for (const file of imageFiles) {
+          const url = await handleFileUpload(file);
+          if (url) imageUrls.push(url);
+        }
+        imageUrl = imageUrls[0]; // Set first as main image
       }
+
       if (pdfFile) {
         pdfUrl = await handleFileUpload(pdfFile);
       }
 
       const organizerId = localStorage.getItem('userId');
-      const response = await fetch(`http://localhost:8000/api/events?organizer_id=${organizerId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/events?organizer_id=${organizerId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,7 +160,7 @@ export default function AdminDashboard() {
           image: imageUrl,
           pdf_url: pdfUrl,
           website_url: formData.website_url,
-          website_url: formData.website_url
+          images: imageUrls
         }),
       });
 
@@ -188,23 +200,31 @@ export default function AdminDashboard() {
 
       let imageUrl = formData.image;
       let pdfUrl = formData.pdf_url;
+      let imageUrls = [];
 
-      if (imageFile) {
-        imageUrl = await handleFileUpload(imageFile);
+      if (imageFiles.length > 0) {
+        for (const file of imageFiles) {
+          const url = await handleFileUpload(file);
+          if (url) imageUrls.push(url);
+        }
+        imageUrl = imageUrls[0]; // Set first as main image
       }
+
       if (pdfFile) {
         pdfUrl = await handleFileUpload(pdfFile);
       }
 
       const organizerId = localStorage.getItem('userId');
-      const response = await fetch(`http://localhost:8000/api/events/${editingEvent.id}?organizer_id=${organizerId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/events/${editingEvent.id}?organizer_id=${organizerId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
           category_id: parseInt(formData.category_id),
           image: imageUrl,
-          pdf_url: pdfUrl
+          pdf_url: pdfUrl,
+          website_url: formData.website_url,
+          images: imageUrls.length > 0 ? imageUrls : undefined
         }),
       });
 
@@ -240,7 +260,7 @@ export default function AdminDashboard() {
       pdf_url: '',
       website_url: '',
     });
-    setImageFile(null);
+    setImageFiles([]);
     setPdfFile(null);
     setShowCreateForm(false);
     setEditingEvent(null);
@@ -268,7 +288,7 @@ export default function AdminDashboard() {
 
     try {
       const organizerId = localStorage.getItem('userId');
-      const response = await fetch(`http://localhost:8000/api/events/${id}?organizer_id=${organizerId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/events/${id}?organizer_id=${organizerId}`, {
         method: 'DELETE',
       });
 
@@ -282,7 +302,7 @@ export default function AdminDashboard() {
 
   const fetchParticipants = async (eventId) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/participants/event/${eventId}`);
+      const response = await fetch(`http://127.0.0.1:8000/api/participants/event/${eventId}`);
       const data = await response.json();
       setSelectedEventParticipants(data);
       setShowParticipantsModal(true);
@@ -542,16 +562,17 @@ export default function AdminDashboard() {
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setImageFile(e.target.files[0])}
+                      multiple
+                      onChange={(e) => setImageFiles(Array.from(e.target.files))}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                    <div className={`p-6 rounded-xl border-2 border-dashed transition-all ${imageFile ? 'border-purple-500 bg-purple-500/5' : 'border-white/10 hover:border-purple-500/30'}`}>
+                    <div className={`p-6 rounded-xl border-2 border-dashed transition-all ${imageFiles.length > 0 ? 'border-purple-500 bg-purple-500/5' : 'border-white/10 hover:border-purple-500/30'}`}>
                       <div className="text-center">
-                        <ImageIcon className={`w-12 h-12 mx-auto mb-3 transition-colors ${imageFile ? 'text-purple-400' : 'text-gray-400 group-hover:text-purple-400'}`} />
+                        <ImageIcon className={`w-12 h-12 mx-auto mb-3 transition-colors ${imageFiles.length > 0 ? 'text-purple-400' : 'text-gray-400 group-hover:text-purple-400'}`} />
                         <div className="text-sm text-gray-400 mb-1">
-                          {imageFile ? imageFile.name : 'Upload Event Image'}
+                          {imageFiles.length > 0 ? `${imageFiles.length} images selected` : 'Upload Event Images (Slideshow)'}
                         </div>
-                        <div className="text-xs text-gray-500">PNG, JPG up to 10MB</div>
+                        <div className="text-xs text-gray-500">PNG, JPG up to 10MB (Multiple)</div>
                       </div>
                     </div>
                   </div>

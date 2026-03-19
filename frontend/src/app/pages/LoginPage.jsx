@@ -18,7 +18,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/users/login', {
+      console.log('Attempting login for:', email);
+      const response = await fetch('http://127.0.0.1:8000/api/users/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -30,7 +31,9 @@ export default function LoginPage() {
         }),
       });
 
+      console.log('Login API Response:', response);
       const data = await response.json();
+      console.log('Login API Data:', data);
 
       if (!response.ok) {
         setError(data.detail || 'Login failed. Please check your credentials.');

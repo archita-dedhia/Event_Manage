@@ -26,7 +26,7 @@ export default function ProfilePage() {
 
     try {
       const userId = localStorage.getItem('userId');
-      const response = await fetch(`http://localhost:8000/api/users/${userId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/users/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

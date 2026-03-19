@@ -6,7 +6,8 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from .database import get_db
-from . import models, schemas
+from . import models
+from . import schemas
 
 
 app = FastAPI(
@@ -14,15 +15,9 @@ app = FastAPI(
     description="Backend API for Campus Events Management Platform",
     version="1.0.0",
 )
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,13 +48,14 @@ async def upload_file(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, buffer)
             
         # Return the URL to access the file
-        return {"url": f"http://localhost:8000/uploads/{file.filename}", "filename": file.filename}
+        return {"url": f"http://127.0.0.1:8000/uploads/{file.filename}", "filename": file.filename}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not upload file: {str(e)}")
 
 
 @app.post("/api/users/register", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
 def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
+    print(f"Registering user: {payload.email}")
     existing_user = db.query(models.User).filter(models.User.email == payload.email).first()
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -196,11 +192,21 @@ def create_event(payload: schemas.EventCreate, organizer_id: int, db: Session = 
         organizer_id=organizer_id,
         capacity=payload.capacity,
         image=payload.image,
-        pdf_url=payload.pdf_url
+        pdf_url=payload.pdf_url,
+        website_url=payload.website_url
     )
     db.add(event)
     db.commit()
     db.refresh(event)
+
+    # Add images if provided
+    if payload.images:
+        for image_url in payload.images:
+            db_image = models.EventImage(event_id=event.id, url=image_url)
+            db.add(db_image)
+        db.commit()
+        db.refresh(event)
+
     return event
 
 
@@ -264,6 +270,15 @@ def update_event(event_id: int, payload: schemas.EventUpdate, organizer_id: int,
         event.image = payload.image
     if payload.pdf_url:
         event.pdf_url = payload.pdf_url
+    if payload.website_url:
+        event.website_url = payload.website_url
+    
+    if payload.images is not None:
+        # Replace existing images
+        db.query(models.EventImage).filter(models.EventImage.event_id == event_id).delete()
+        for image_url in payload.images:
+            db_image = models.EventImage(event_id=event.id, url=image_url)
+            db.add(db_image)
     
     db.commit()
     db.refresh(event)
@@ -343,4 +358,22 @@ def get_all_organizer_participants(organizer_id: int, db: Session = Depends(get_
     
     # Join Participant -> Event to filter by organizer_id
     return db.query(models.Participant).join(models.Event).filter(models.Event.organizer_id == organizer_id).all()
+
+
+@app.get("/api/admin/analytics/{organizer_id}", response_model=schemas.AdminAnalytics)
+def get_admin_analytics(organizer_id: int, db: Session = Depends(get_db)):
+    user = db.query(models.User).filter(models.User.id == organizer_id).first()
+    if not user or user.user_type != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can access analytics")
+    
+    events = db.query(models.Event).filter(models.Event.organizer_id == organizer_id).all()
+    total_events = len(events)
+    total_attendees = sum(event.attendees for event in events)
+    average_attendance = total_attendees / total_events if total_events > 0 else 0
+    
+    return {
+        "total_events": total_events,
+        "total_attendees": total_attendees,
+        "average_attendance": average_attendance
+    }
 

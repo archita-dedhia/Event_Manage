@@ -1,34 +1,67 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Calendar, Users, MapPin, Sparkles, Zap, Shield, FileText, X } from 'lucide-react';
+import { Calendar, Users, MapPin, Sparkles, Zap, Shield, FileText, X, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 
 export default function LandingPage() {
+  console.log('LandingPage rendered');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchDate, setSearchDate] = useState('');
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     fetchEvents();
   }, []);
 
   const fetchEvents = async () => {
+    setLoading(true);
+    setFetchError(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
     try {
-      const response = await fetch('http://localhost:8000/api/events');
+      console.log('Attempting to fetch events from http://127.0.0.1:8000/api/events (with timeout)');
+      const response = await fetch('http://127.0.0.1:8000/api/events', { 
+        signal: controller.signal,
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      clearTimeout(timeoutId);
+      console.log('API Response status:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
-      // Sort by date upcoming
+      console.log('API Data received:', data.length, 'events');
       const sorted = data.sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
       setEvents(sorted);
     } catch (err) {
-      console.error('Error fetching events:', err);
+      clearTimeout(timeoutId);
+      console.error('Detailed fetch error:', err);
+      const msg = err.name === 'AbortError' ? 'Request timed out (8s). The backend at http://127.0.0.1:8000/api/events is not responding.' : err.message;
+      setFetchError(msg);
+      window.alert('BACKEND CONNECTION ERROR: ' + msg);
     } finally {
       setLoading(false);
     }
   };
 
-  const featuredEvents = events.slice(0, 6);
+  const filteredEvents = events.filter(event => {
+    const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          event.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDate = !searchDate || event.date === searchDate;
+    return matchesSearch && matchesDate;
+  });
+
+  const featuredEvents = filteredEvents.slice(0, 6);
 
   return (
     <div className="min-h-screen bg-[#0a0d1f]">
@@ -160,8 +193,42 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl mb-4 text-white">Upcoming Events</h2>
-            <p className="text-gray-400 text-lg">Don't miss out on these exciting campus happenings</p>
+            <p className="text-gray-400 text-lg mb-8">Don't miss out on these exciting campus happenings</p>
+            
+            {/* Search Bar */}
+            <div className="max-w-2xl mx-auto flex flex-col md:flex-row gap-4">
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  placeholder="Search by name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                />
+              </div>
+              <div className="md:w-48 relative">
+                <input
+                  type="date"
+                  value={searchDate}
+                  onChange={(e) => setSearchDate(e.target.value)}
+                  className="w-full px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                />
+              </div>
+            </div>
           </div>
+          
+          {fetchError && (
+            <div className="p-6 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 mb-8 max-w-2xl mx-auto">
+              <h3 className="text-lg font-semibold mb-2">Connection Error</h3>
+              <p>{fetchError}</p>
+              <button 
+                onClick={fetchEvents}
+                className="mt-4 px-6 py-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-all"
+              >
+                Try Again
+              </button>
+            </div>
+          )}
           
           {loading ? (
             <div className="flex justify-center items-center h-64">
@@ -201,7 +268,10 @@ export default function LandingPage() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setSelectedEvent(event)}
+                      onClick={() => {
+                        setSelectedEvent(event);
+                        setCurrentImageIndex(0);
+                      }}
                       className="block w-full py-3 text-center rounded-xl bg-gradient-to-r from-purple-500/10 to-blue-600/10 border border-purple-500/20 text-purple-300 hover:from-purple-500 hover:to-blue-600 hover:text-white transition-all"
                     >
                       View Details
@@ -240,38 +310,96 @@ export default function LandingPage() {
 
             <div className="p-6 lg:p-10">
               <div className="grid lg:grid-cols-2 gap-10">
-                {/* Left Side - Image */}
+                {/* Left Side - Image Slideshow */}
                 <div className="space-y-6">
-                  <div className="aspect-video lg:aspect-square rounded-2xl overflow-hidden border border-white/10">
+                  <div className="relative aspect-video lg:aspect-square rounded-2xl overflow-hidden border border-white/10 group">
                     <ImageWithFallback 
-                      src={selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image]} 
+                      src={
+                        selectedEvent.images && selectedEvent.images.length > 0
+                          ? selectedEvent.images[currentImageIndex].url
+                          : (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image])
+                      } 
                       alt={selectedEvent.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-500"
                     />
+                    
+                    {/* Slideshow Controls */}
+                    {selectedEvent.images && selectedEvent.images.length > 1 && (
+                      <>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex((prev) => (prev === 0 ? selectedEvent.images.length - 1 : prev - 1));
+                          }}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronLeft className="w-6 h-6" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCurrentImageIndex((prev) => (prev === selectedEvent.images.length - 1 ? 0 : prev + 1));
+                          }}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <ChevronRight className="w-6 h-6" />
+                        </button>
+                        
+                        {/* Dots Indicator */}
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                          {selectedEvent.images.map((_, idx) => (
+                            <div 
+                              key={idx}
+                              className={`w-2 h-2 rounded-full transition-all ${idx === currentImageIndex ? 'bg-purple-500 w-4' : 'bg-white/50'}`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                   
-                  {/* PDF Attachment */}
-                  {selectedEvent.pdf_url && (
-                    <a 
-                      href={selectedEvent.pdf_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="block p-6 rounded-2xl bg-white/5 border border-white/10 group hover:border-purple-500/30 transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-purple-400" />
+                  {/* Attachments & Links */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* PDF Attachment */}
+                    {selectedEvent.pdf_url && (
+                      <a 
+                        href={selectedEvent.pdf_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-purple-500/30 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-5 h-5 text-purple-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium text-sm truncate">Attachment</div>
+                            <div className="text-xs text-gray-500">PDF Document</div>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <div className="text-white font-medium">Event_Attachment.pdf</div>
-                          <div className="text-sm text-gray-500">Click to view document</div>
+                      </a>
+                    )}
+
+                    {/* Website Link */}
+                    {selectedEvent.website_url && (
+                      <a 
+                        href={selectedEvent.website_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-blue-500/30 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                            <Globe className="w-5 h-5 text-blue-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-white font-medium text-sm truncate">Website</div>
+                            <div className="text-xs text-gray-500">Official Link</div>
+                          </div>
                         </div>
-                        <div className="text-purple-400 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                          View
-                        </div>
-                      </div>
-                    </a>
-                  )}
+                      </a>
+                    )}
+                  </div>
                 </div>
 
                 {/* Right Side - Info */}

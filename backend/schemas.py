@@ -68,7 +68,7 @@ class EventCreate(BaseModel):
     image: Optional[str] = None
     pdf_url: Optional[str] = None
     website_url: Optional[str] = None
-    website_url: Optional[str] = None
+    images: Optional[list[str]] = []
 
 
 class EventUpdate(BaseModel):
@@ -81,6 +81,17 @@ class EventUpdate(BaseModel):
     capacity: Optional[int] = None
     image: Optional[str] = None
     pdf_url: Optional[str] = None
+    website_url: Optional[str] = None
+    images: Optional[list[str]] = None
+
+
+class EventImageOut(BaseModel):
+    id: int
+    event_id: int
+    url: str
+
+    class Config:
+        from_attributes = True
 
 
 class EventOut(BaseModel):
@@ -96,6 +107,8 @@ class EventOut(BaseModel):
     attendees: int
     image: Optional[str]
     pdf_url: Optional[str]
+    website_url: Optional[str] = None
+    images: list[EventImageOut] = []
     created_at: datetime
 
     class Config:
@@ -139,4 +152,10 @@ class LoginResponse(BaseModel):
     success: bool
     user: UserOut
     message: str
+
+
+class AdminAnalytics(BaseModel):
+    total_events: int
+    total_attendees: int
+    average_attendance: float
 

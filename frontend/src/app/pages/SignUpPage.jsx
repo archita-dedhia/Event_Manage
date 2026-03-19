@@ -37,7 +37,8 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/api/users/register', {
+      console.log('Attempting signup for:', email);
+      const response = await fetch('http://127.0.0.1:8000/api/users/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -51,7 +52,9 @@ export default function SignUpPage() {
         }),
       });
 
+      console.log('Signup API Response:', response);
       const data = await response.json();
+      console.log('Signup API Data:', data);
 
       if (!response.ok) {
         setError(data.detail || 'Sign up failed. Please try again.');
