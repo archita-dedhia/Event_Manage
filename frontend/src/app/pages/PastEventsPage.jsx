@@ -24,10 +24,11 @@ export default function PastEventsPage() {
       const data = await response.json();
       
       // Filter for past events
-      const now = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       const past = data.filter(event => {
-        const eventDate = new Date(event.date + ' ' + event.time);
-        return eventDate < now;
+        const eventDate = new Date(event.date);
+        return eventDate < today;
       });
       
       // Sort by date (most recent first)

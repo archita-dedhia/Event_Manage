@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight, FileText, Play, Pause } from 'lucide-react';
 
-export default function FullScreenSlideshow({ items, initialIndex = 0, onClose, autoPlayInterval = 3000 }) {
+export default function FullScreenSlideshow({ items, initialIndex = 0, onClose, autoPlayInterval = 5000 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isPlaying, setIsPlaying] = useState(true);
 

@@ -49,7 +49,7 @@ export default function AdminDashboard() {
     if (isAutoPlaying && selectedEvent && selectedEvent.images?.length > 1) {
       interval = setInterval(() => {
         setCurrentImageIndex((prev) => (prev + 1) % selectedEvent.images.length);
-      }, 3000);
+      }, 5000);
     }
     return () => clearInterval(interval);
   }, [isAutoPlaying, selectedEvent]);
@@ -410,10 +410,17 @@ export default function AdminDashboard() {
               </span>
             </a>
             <Link 
+              to="/past-events" 
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Activity className="w-5 h-5" />
+              <span>Past Events</span>
+            </Link>
+            <Link 
               to="/profile" 
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
             >
-              <Users className="w-5 h-5" />
+              <User className="w-5 h-5" />
               <span>Profile</span>
             </Link>
           </nav>

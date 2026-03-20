@@ -24,7 +24,7 @@ export default function LandingPage() {
     if (isAutoPlaying && selectedEvent && selectedEvent.images?.length > 1) {
       interval = setInterval(() => {
         setCurrentImageIndex((prev) => (prev + 1) % selectedEvent.images.length);
-      }, 3000);
+      }, 5000);
     }
     return () => clearInterval(interval);
   }, [isAutoPlaying, selectedEvent]);
