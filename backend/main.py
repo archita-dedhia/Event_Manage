@@ -1,10 +1,22 @@
 import os
 import shutil
-from fastapi import Depends, FastAPI, HTTPException, status, File, UploadFile
+import io
+import urllib.parse
+import requests
+from datetime import datetime
+from fastapi import Depends, FastAPI, HTTPException, status, File, UploadFile, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
+
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.units import inch
 
 from .database import get_db
 from . import models
@@ -39,7 +51,7 @@ def health_check():
 
 
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(request: Request, file: UploadFile = File(...)):
     try:
         # Create a unique filename to avoid collisions
         file_path = os.path.join(UPLOAD_DIR, file.filename)
@@ -49,7 +61,9 @@ async def upload_file(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, buffer)
             
         # Return the URL to access the file
-        return {"url": f"http://127.0.0.1:8000/uploads/{file.filename}", "filename": file.filename}
+        base_url = str(request.base_url).rstrip("/")
+        encoded_filename = urllib.parse.quote(file.filename)
+        return {"url": f"{base_url}/uploads/{encoded_filename}", "filename": file.filename}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Could not upload file: {str(e)}")
 
@@ -214,6 +228,198 @@ def create_event(payload: schemas.EventCreate, organizer_id: int, db: Session = 
         db.refresh(event)
 
     return event
+
+
+def get_image_data(url: str):
+    """Download image or read from local storage"""
+    if not url:
+        return None
+    
+    # Check if it's a local file URL
+    if "uploads/" in url:
+        # Extract filename from URL
+        filename = url.split("uploads/")[-1]
+        filename = urllib.parse.unquote(filename)
+        file_path = os.path.join(UPLOAD_DIR, filename)
+        if os.path.exists(file_path):
+            return file_path
+            
+    # If it's a remote URL or local path doesn't exist
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            return io.BytesIO(response.content)
+    except Exception as e:
+        print(f"Error fetching image {url}: {e}")
+    
+    return None
+
+
+@app.get("/api/events/{event_id}/report")
+def generate_event_report(request: Request, event_id: int, organizer_id: int, db: Session = Depends(get_db)):
+    # 1. Verify admin
+    user = db.query(models.User).filter(models.User.id == organizer_id).first()
+    if not user or user.user_type != 'admin':
+        raise HTTPException(status_code=403, detail="Only admins can download reports")
+
+    # 2. Get event details
+    event = db.query(models.Event).filter(models.Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # 3. Get registered participants
+    participants = db.query(models.Participant).filter(models.Participant.event_id == event_id).all()
+    
+    # 4. Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=30, bottomMargin=30)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    # Custom Style for Geo-tag
+    geotag_style = styles['Normal'].clone('GeoTag')
+    geotag_style.fontSize = 8
+    geotag_style.textColor = colors.white
+    geotag_style.backColor = colors.black
+    geotag_style.alignment = 1 # Center
+
+    # Header: Title and Status
+    elements.append(Paragraph(f"EVENT REPORT: {event.title.upper()}", styles['Title']))
+    status_text = "COMPLETED" if event.date < str(datetime.now().date()) else "UPCOMING"
+    status_color = colors.green if status_text == "COMPLETED" else colors.blue
+    elements.append(Paragraph(f"<font color='{status_color}'><b>STATUS: {status_text}</b></font>", styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    # Event Info Table (Two columns)
+    info_data = [
+        ["DATE:", f"{event.date}{' to ' + event.end_date if event.end_date else ''}"],
+        ["TIME:", f"{event.time}{' - ' + event.end_time if event.end_time else ''} ({event.duration or 'N/A'})"],
+        ["LOCATION:", event.location],
+        ["CAPACITY:", f"{event.attendees} / {event.capacity} Registered"]
+    ]
+    
+    info_table = Table(info_data, colWidths=[100, 350])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('BACKGROUND', (0, 0), (0, -1), colors.whitesmoke),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 18))
+
+    # Description Section
+    elements.append(Paragraph("<b>EVENT DESCRIPTION:</b>", styles['Heading3']))
+    elements.append(Paragraph(event.description, styles['Normal']))
+    elements.append(Spacer(1, 18))
+
+    # Images Section (Geo-tagged images)
+    elements.append(Paragraph("<b>EVENT IMAGES (GEO-TAGGED):</b>", styles['Heading3']))
+    
+    # Collect all image URLs
+    all_images = []
+    if event.image:
+        all_images.append(event.image)
+    if event.images:
+        for img in event.images:
+            if img.url not in all_images:
+                all_images.append(img.url)
+
+    if all_images:
+        image_elements = []
+        for img_url in all_images[:4]: # Limit to 4 images for a one-page report
+            img_data = get_image_data(img_url)
+            if img_data:
+                try:
+                    # Create image element
+                    pdf_img = Image(img_data, width=2.2*inch, height=1.5*inch)
+                    
+                    # Create Geo-tag label
+                    geotag = Paragraph(f"📍 {event.location}", geotag_style)
+                    
+                    # Combine Image and Tag in a small table to act as one unit
+                    img_block = Table([[pdf_img], [geotag]], colWidths=[2.2*inch])
+                    img_block.setStyle(TableStyle([
+                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+                        ('TOPPADDING', (0,0), (-1,-1), 0),
+                    ]))
+                    image_elements.append(img_block)
+                except Exception as e:
+                    print(f"Could not add image {img_url} to PDF: {e}")
+
+        if image_elements:
+            # Layout images in a grid (2x2)
+            grid_data = []
+            row = []
+            for i, img_block in enumerate(image_elements):
+                row.append(img_block)
+                if (i + 1) % 2 == 0:
+                    grid_data.append(row)
+                    row = []
+            if row:
+                grid_data.append(row + [None] * (2 - len(row)))
+            
+            image_grid = Table(grid_data, colWidths=[2.5*inch, 2.5*inch])
+            image_grid.setStyle(TableStyle([
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('LEFTPADDING', (0,0), (-1,-1), 10),
+                ('RIGHTPADDING', (0,0), (-1,-1), 10),
+                ('TOPPADDING', (0,0), (-1,-1), 10),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+            ]))
+            elements.append(image_grid)
+    else:
+        elements.append(Paragraph("<i>No images available for this event.</i>", styles['Normal']))
+    
+    elements.append(Spacer(1, 18))
+
+    # Registered Students Table
+    elements.append(Paragraph(f"<b>REGISTERED STUDENTS ({len(participants)}):</b>", styles['Heading3']))
+    
+    if participants:
+        student_data = [["#", "Name", "Email", "Date Joined"]]
+        # Limit participants to 10 for one-page report
+        for i, p in enumerate(participants[:10], 1):
+            student_data.append([
+                str(i),
+                p.user.full_name if p.user else "N/A",
+                p.user.email if p.user else "N/A",
+                p.registered_at.strftime("%Y-%m-%d")
+            ])
+        
+        if len(participants) > 10:
+            student_data.append(["...", f"and {len(participants)-10} more", "", ""])
+
+        st = Table(student_data, colWidths=[30, 150, 180, 100])
+        st.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#6d28d9")), # Purple
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey)
+        ]))
+        elements.append(st)
+    else:
+        elements.append(Paragraph("No students registered yet.", styles['Italic']))
+
+    # Footer
+    elements.append(Spacer(1, 24))
+    elements.append(Paragraph(f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | CampusEvents Management", styles['Normal']))
+
+    doc.build(elements)
+    buffer.seek(0)
+    
+    filename = f"Report_{event.title.replace(' ', '_')}.pdf"
+    return StreamingResponse(
+        buffer, 
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 
 @app.get("/api/events", response_model=list[schemas.EventOut])

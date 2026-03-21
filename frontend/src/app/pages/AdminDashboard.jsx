@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
-  Globe
+  Globe,
+  Download
 } from 'lucide-react';
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
@@ -54,6 +55,32 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, [isAutoPlaying, selectedEvent]);
 
+  const handleDownloadReport = async (event) => {
+    try {
+      const organizerId = localStorage.getItem('userId');
+      const response = await fetch(`http://127.0.0.1:8000/api/events/${event.id}/report?organizer_id=${organizerId}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to download report');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Report_${event.title.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Report error:', err);
+      alert('Error downloading report: ' + err.message);
+    }
+  };
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     date: '',
@@ -147,6 +174,8 @@ export default function AdminDashboard() {
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     
     try {
       const categoryId = parseInt(formData.category_id);
@@ -204,11 +233,15 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error('Create error:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleUpdateEvent = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     
     try {
       const categoryId = parseInt(formData.category_id);
@@ -266,6 +299,8 @@ export default function AdminDashboard() {
       }
     } catch (err) {
       console.error('Update error:', err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -352,12 +387,14 @@ export default function AdminDashboard() {
     }).length;
   };
 
-  // Sort events by date - upcoming first
-  const sortedEvents = [...events].sort((a, b) => {
-    const dateA = new Date(a.date + ' ' + a.time);
-    const dateB = new Date(b.date + ' ' + b.time);
-    return dateA - dateB;
-  });
+  // Sort and filter events
+  const upcomingEvents = events.filter(event => new Date(event.date) >= new Date().setHours(0,0,0,0))
+    .sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
+  
+  const pastEvents = events.filter(event => new Date(event.date) < new Date().setHours(0,0,0,0))
+    .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time));
+
+  const [activeTab, setActiveTab] = useState('upcoming');
 
   return (
     <div className="min-h-screen bg-[#0a0d1f] flex">
@@ -694,9 +731,10 @@ export default function AdminDashboard() {
                 <div className="flex gap-4">
                   <button
                     type="submit"
-                    className="flex-1 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50 transition-all"
+                    disabled={isSubmitting}
+                    className="flex-1 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {editingEvent ? 'Update Event' : 'Create Event'}
+                    {isSubmitting ? 'Processing...' : (editingEvent ? 'Update Event' : 'Create Event')}
                   </button>
                   <button
                     type="button"
@@ -710,26 +748,59 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Events Table */}
+          {/* Events Table Section */}
           <section id="events" className="mb-8">
-            <h2 className="text-2xl mb-6 text-white">All Events</h2>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+              <h2 className="text-2xl text-white">Event Management</h2>
+              
+              <div className="flex p-1 bg-white/5 rounded-xl border border-white/10">
+                <button
+                  onClick={() => setActiveTab('upcoming')}
+                  className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === 'upcoming' 
+                      ? 'bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/20' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Upcoming ({upcomingEvents.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('past')}
+                  className={`px-6 py-2 rounded-lg text-sm font-medium transition-all ${
+                    activeTab === 'past' 
+                      ? 'bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/20' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Past ({pastEvents.length})
+                </button>
+              </div>
+            </div>
             
             <div className="rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="text-left px-6 py-4 text-sm text-gray-400">Event</th>
-                      <th className="text-left px-6 py-4 text-sm text-gray-400">Category</th>
-                      <th className="text-left px-6 py-4 text-sm text-gray-400">Date & Time</th>
-                      <th className="text-left px-6 py-4 text-sm text-gray-400">Location</th>
-                      <th className="text-left px-6 py-4 text-sm text-gray-400">Attendance</th>
-                      <th className="text-left px-6 py-4 text-sm text-gray-400">Actions</th>
+                    <tr className="border-b border-white/10 text-left">
+                      <th className="px-6 py-4 text-sm text-gray-400 font-medium">Event</th>
+                      <th className="px-6 py-4 text-sm text-gray-400 font-medium">Category</th>
+                      <th className="px-6 py-4 text-sm text-gray-400 font-medium">Date & Time</th>
+                      <th className="px-6 py-4 text-sm text-gray-400 font-medium">Location</th>
+                      <th className="px-6 py-4 text-sm text-gray-400 font-medium">Attendance</th>
+                      <th className="px-6 py-4 text-sm text-gray-400 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedEvents.map((event) => (
-                      <tr key={event.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                    {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => (
+                      <tr 
+                            key={event.id} 
+                            className="group border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                            onClick={() => {
+                              setSelectedEvent(event);
+                              setCurrentImageIndex(0);
+                              setIsAutoPlaying(true);
+                            }}
+                          >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div 
@@ -795,18 +866,25 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => {
-                                setSelectedEvent(event);
-                                setCurrentImageIndex(0);
-                                setIsAutoPlaying(true);
-                              }}
-                              className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
-                              title="View Details"
-                            >
-                              <Activity className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <button 
+                                onClick={() => handleDownloadReport(event)}
+                                className="p-2 rounded-lg text-gray-400 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+                                title="Download PDF Report"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setSelectedEvent(event);
+                                  setCurrentImageIndex(0);
+                                  setIsAutoPlaying(true);
+                                }}
+                                className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
+                                title="View Details"
+                              >
+                                <Activity className="w-4 h-4" />
+                              </button>
                             <button 
                               onClick={() => handleEditClick(event)}
                               className="p-2 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
@@ -911,7 +989,16 @@ export default function AdminDashboard() {
           <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-gradient-to-br from-white/10 to-white/[0.02] backdrop-blur-xl border border-white/10 shadow-2xl">
             {/* Modal Header */}
             <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-white/10 bg-[#0a0d1f]/50 backdrop-blur-md">
-              <h2 className="text-2xl text-white font-semibold">Event Details</h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl text-white font-semibold">Event Details</h2>
+                <button 
+                  onClick={() => handleDownloadReport(selectedEvent)}
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium hover:bg-green-500/20 transition-all"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download Report
+                </button>
+              </div>
               <button 
                 onClick={() => setSelectedEvent(null)}
                 className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"

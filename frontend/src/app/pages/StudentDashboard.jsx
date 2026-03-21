@@ -25,6 +25,7 @@ export default function StudentDashboard() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { full_name: 'Student' });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('Upcoming'); // Upcoming, Past, All
   const [bookedEvents, setBookedEvents] = useState([]);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +96,17 @@ export default function StudentDashboard() {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || event.category?.name === selectedCategory || event.category_id === parseInt(selectedCategory);
-    return matchesSearch && matchesCategory;
+    
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isPast = eventDate < today;
+    
+    const matchesStatus = selectedStatus === 'All' || 
+                         (selectedStatus === 'Upcoming' && !isPast) || 
+                         (selectedStatus === 'Past' && isPast);
+                         
+    return matchesSearch && matchesCategory && matchesStatus;
   });
 
   const groupedEvents = filteredEvents.reduce((acc, event) => {
@@ -269,7 +280,24 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {/* Category Filter */}
+          {/* Status Filter */}
+            <div className="flex bg-white/5 p-1 rounded-xl border border-white/10">
+              {['Upcoming', 'Past', 'All'].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setSelectedStatus(status)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedStatus === status 
+                      ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' 
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+
+            {/* Category Filter */}
           <div className="mb-8 flex items-center gap-3 overflow-x-auto pb-2">
             <Filter className="w-5 h-5 text-gray-400 flex-shrink-0" />
             {categories.map((category) => (
@@ -692,20 +720,27 @@ export default function StudentDashboard() {
                     </p>
                   </div>
 
+                  {/* Booking Action */}
                   <div className="mt-auto pt-6 border-t border-white/10">
-                    <button
-                      onClick={() => {
-                        handleBookEvent(selectedEvent.id);
-                        setSelectedEvent(null);
-                      }}
-                      className={`block w-full py-4 text-center rounded-2xl font-semibold transition-all transform hover:scale-[1.02] ${
-                        bookedEvents.includes(selectedEvent.id.toString())
-                          ? 'bg-red-500/20 border border-red-500/30 text-red-300'
-                          : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50'
-                      }`}
-                    >
-                      {bookedEvents.includes(selectedEvent.id.toString()) ? 'Cancel Booking' : 'Book This Event'}
-                    </button>
+                    {new Date(selectedEvent.date) >= new Date().setHours(0,0,0,0) ? (
+                      <button
+                        onClick={() => {
+                          handleBookEvent(selectedEvent.id);
+                          setSelectedEvent(null);
+                        }}
+                        className={`block w-full py-4 text-center rounded-2xl font-semibold transition-all transform hover:scale-[1.02] ${
+                          bookedEvents.includes(selectedEvent.id.toString())
+                            ? 'bg-red-500/20 border border-red-500/30 text-red-300'
+                            : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50'
+                        }`}
+                      >
+                        {bookedEvents.includes(selectedEvent.id.toString()) ? 'Cancel Booking' : 'Book This Event'}
+                      </button>
+                    ) : (
+                      <div className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-500 font-medium text-center italic">
+                        This event has already ended
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

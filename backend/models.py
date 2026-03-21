@@ -50,9 +50,9 @@ class Event(Base):
     organizer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     capacity = Column(Integer, nullable=False)
     attendees = Column(Integer, default=0)
-    image = Column(String(255), nullable=True)  # Image identifier/URL
-    pdf_url = Column(String(255), nullable=True)  # PDF identifier/URL
-    website_url = Column(String(255), nullable=True) #Optional website link
+    image = Column(Text, nullable=True)  # Image identifier/URL
+    pdf_url = Column(Text, nullable=True)  # PDF identifier/URL
+    website_url = Column(Text, nullable=True) #Optional website link
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -68,7 +68,7 @@ class EventImage(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
-    url = Column(String(255), nullable=False)
+    url = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships

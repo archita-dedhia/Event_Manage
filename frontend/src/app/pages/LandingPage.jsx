@@ -553,24 +553,32 @@ export default function LandingPage() {
                   </div>
 
                   <div className="mt-auto pt-6 border-t border-white/10">
-                    {user ? (
-                      <Link 
-                        to={user.user_type === 'admin' ? '/admin/dashboard' : '/student/dashboard'}
-                        className="block w-full py-4 text-center rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-semibold hover:shadow-2xl hover:shadow-purple-500/50 transition-all transform hover:scale-[1.02]"
-                      >
-                        Go to Dashboard to Book
-                      </Link>
+                    {new Date(selectedEvent.date) >= new Date().setHours(0,0,0,0) ? (
+                      <>
+                        {user ? (
+                          <Link 
+                            to={user.user_type === 'admin' ? '/admin/dashboard' : '/student/dashboard'}
+                            className="block w-full py-4 text-center rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-semibold hover:shadow-2xl hover:shadow-purple-500/50 transition-all transform hover:scale-[1.02]"
+                          >
+                            Go to Dashboard to Book
+                          </Link>
+                        ) : (
+                          <Link 
+                            to="/login"
+                            className="block w-full py-4 text-center rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-semibold hover:shadow-2xl hover:shadow-purple-500/50 transition-all transform hover:scale-[1.02]"
+                          >
+                            Login to Book This Event
+                          </Link>
+                        )}
+                        <p className="text-center text-xs text-gray-500 mt-4">
+                          {user ? 'Admins cannot book events.' : 'You must be a registered student to book events.'}
+                        </p>
+                      </>
                     ) : (
-                      <Link 
-                        to="/login"
-                        className="block w-full py-4 text-center rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-semibold hover:shadow-2xl hover:shadow-purple-500/50 transition-all transform hover:scale-[1.02]"
-                      >
-                        Login to Book This Event
-                      </Link>
+                      <div className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-500 font-medium text-center italic">
+                        This event has already ended
+                      </div>
                     )}
-                    <p className="text-center text-xs text-gray-500 mt-4">
-                      {user ? 'Admins cannot book events.' : 'You must be a registered student to book events.'}
-                    </p>
                   </div>
                 </div>
               </div>
