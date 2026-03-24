@@ -316,7 +316,7 @@ export default function LandingPage() {
                     )}
 
                     <div className="absolute top-4 left-4 px-4 py-1 rounded-full bg-purple-500/20 backdrop-blur-md border border-purple-500/30 text-xs font-medium text-purple-300">
-                      {event.category?.name || 'General'}
+                      {event.category_name || 'General'}
                     </div>
                   </div>
                   <div className="p-6">
@@ -509,9 +509,16 @@ export default function LandingPage() {
                 {/* Right Side - Info */}
                 <div className="flex flex-col">
                   <div className="inline-block self-start px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 mb-4">
-                    {selectedEvent.category?.name || 'General'}
+                    {selectedEvent.category_name || 'General'}
                   </div>
                   <h3 className="text-3xl lg:text-4xl text-white font-bold mb-6">{selectedEvent.title}</h3>
+                  
+                  {selectedEvent.is_rsvp_based && (
+                    <div className="mb-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm flex items-center gap-3">
+                      <Globe className="w-5 h-5 flex-shrink-0" />
+                      <span>This event uses external RSVP. You will be redirected to the RSVP site to book.</span>
+                    </div>
+                  )}
                   
                   <div className="space-y-4 mb-8">
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
@@ -555,7 +562,16 @@ export default function LandingPage() {
                   <div className="mt-auto pt-6 border-t border-white/10">
                     {new Date(selectedEvent.date) >= new Date().setHours(0,0,0,0) ? (
                       <>
-                        {user ? (
+                        {selectedEvent.is_rsvp_based ? (
+                          <a 
+                            href={selectedEvent.rsvp_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full py-4 text-center rounded-2xl bg-blue-600 text-white font-semibold hover:shadow-2xl hover:shadow-blue-500/50 transition-all transform hover:scale-[1.02]"
+                          >
+                            RSVP on External Site
+                          </a>
+                        ) : user ? (
                           <Link 
                             to={user.user_type === 'admin' ? '/admin/dashboard' : '/student/dashboard'}
                             className="block w-full py-4 text-center rounded-2xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-semibold hover:shadow-2xl hover:shadow-purple-500/50 transition-all transform hover:scale-[1.02]"
@@ -571,7 +587,11 @@ export default function LandingPage() {
                           </Link>
                         )}
                         <p className="text-center text-xs text-gray-500 mt-4">
-                          {user ? 'Admins cannot book events.' : 'You must be a registered student to book events.'}
+                          {selectedEvent.is_rsvp_based 
+                            ? 'This event requires external registration.' 
+                            : user 
+                              ? (user.user_type === 'admin' ? 'Admins cannot book events.' : 'Manage your bookings in the dashboard.')
+                              : 'You must be a registered student to book events.'}
                         </p>
                       </>
                     ) : (

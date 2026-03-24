@@ -17,10 +17,14 @@ export default function LoginPage() {
     setSuccess('');
     setLoading(true);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     try {
       console.log('Attempting login for:', email);
       const response = await fetch('http://127.0.0.1:8000/api/users/login', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -31,6 +35,7 @@ export default function LoginPage() {
         }),
       });
 
+      clearTimeout(timeoutId);
       console.log('Login API Response:', response);
       const data = await response.json();
       console.log('Login API Data:', data);

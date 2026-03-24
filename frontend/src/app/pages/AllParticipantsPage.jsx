@@ -37,13 +37,29 @@ export default function AllParticipantsPage() {
   };
 
   const fetchParticipants = async () => {
+    setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     try {
       const userId = localStorage.getItem('userId');
-      const response = await fetch(`http://127.0.0.1:8000/api/admin/participants/${userId}`);
+      const response = await fetch(`http://127.0.0.1:8000/api/admin/participants/${userId}`, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch participants. Please check if the backend is running.');
+      }
+      
       const data = await response.json();
       setParticipants(data);
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error('Error fetching participants:', err);
+      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
+      alert('PARTICIPANTS PAGE ERROR: ' + msg);
     } finally {
       setLoading(false);
     }

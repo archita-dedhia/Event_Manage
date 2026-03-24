@@ -57,8 +57,14 @@ export default function PastEventsPage() {
   const fetchEvents = async () => {
     setLoading(true);
     setFetchError(null);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/events');
+      const response = await fetch('http://127.0.0.1:8000/api/events', { signal: controller.signal });
+      
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
         throw new Error(`API returned ${response.status}`);
       }
@@ -76,7 +82,9 @@ export default function PastEventsPage() {
       const sorted = past.sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time));
       setEvents(sorted);
     } catch (err) {
-      setFetchError(err.message);
+      clearTimeout(timeoutId);
+      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
+      setFetchError(msg);
     } finally {
       setLoading(false);
     }

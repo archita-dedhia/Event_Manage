@@ -71,6 +71,8 @@ class EventCreate(BaseModel):
     image: Optional[str] = None
     pdf_url: Optional[str] = None
     website_url: Optional[str] = None
+    is_rsvp_based: Optional[bool] = False
+    rsvp_url: Optional[str] = None
     images: Optional[list[str]] = []
 
 
@@ -88,6 +90,8 @@ class EventUpdate(BaseModel):
     image: Optional[str] = None
     pdf_url: Optional[str] = None
     website_url: Optional[str] = None
+    is_rsvp_based: Optional[bool] = None
+    rsvp_url: Optional[str] = None
     images: Optional[list[str]] = None
 
 
@@ -111,12 +115,15 @@ class EventOut(BaseModel):
     duration: Optional[str] = None
     location: str
     category_id: int
+    category_name: Optional[str] = None
     organizer_id: int
     capacity: int
     attendees: int
     image: Optional[str]
     pdf_url: Optional[str]
     website_url: Optional[str] = None
+    is_rsvp_based: bool
+    rsvp_url: Optional[str] = None
     images: list[EventImageOut] = []
     created_at: datetime
 

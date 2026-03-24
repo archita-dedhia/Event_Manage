@@ -36,10 +36,14 @@ export default function SignUpPage() {
 
     setLoading(true);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     try {
       console.log('Attempting signup for:', email);
       const response = await fetch('http://127.0.0.1:8000/api/users/register', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -52,6 +56,7 @@ export default function SignUpPage() {
         }),
       });
 
+      clearTimeout(timeoutId);
       console.log('Signup API Response:', response);
       const data = await response.json();
       console.log('Signup API Data:', data);

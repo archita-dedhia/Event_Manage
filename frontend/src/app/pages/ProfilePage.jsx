@@ -34,10 +34,14 @@ export default function ProfilePage() {
     setError('');
     setSuccess('');
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     try {
       const userId = localStorage.getItem('userId');
       const response = await fetch(`http://127.0.0.1:8000/api/users/${userId}`, {
         method: 'PUT',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -48,6 +52,7 @@ export default function ProfilePage() {
         }),
       });
 
+      clearTimeout(timeoutId);
       const data = await response.json();
 
       if (!response.ok) {
@@ -60,7 +65,9 @@ export default function ProfilePage() {
       setUser(updatedUser);
       setSuccess('Profile updated successfully!');
     } catch (err) {
-      setError(err.message);
+      clearTimeout(timeoutId);
+      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -145,7 +152,7 @@ export default function ProfilePage() {
 
             {/* Password */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300 ml-1">Password</label>
+              <label className="text-sm font-medium text-gray-300 ml-1">Update Password</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input

@@ -3,7 +3,7 @@ import shutil
 import io
 import urllib.parse
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from fastapi import Depends, FastAPI, HTTPException, status, File, UploadFile, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +23,12 @@ from . import models
 from . import schemas
 
 
+def get_ist_time():
+    # UTC + 5:30
+    ist_offset = timezone(timedelta(hours=5, minutes=30))
+    return datetime.now(ist_offset)
+
+
 app = FastAPI(
     title="CampusEvents API",
     description="Backend API for Campus Events Management Platform",
@@ -30,7 +36,7 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -213,7 +219,9 @@ def create_event(payload: schemas.EventCreate, organizer_id: int, db: Session = 
         capacity=payload.capacity,
         image=payload.image,
         pdf_url=payload.pdf_url,
-        website_url=payload.website_url
+        website_url=payload.website_url,
+        is_rsvp_based=payload.is_rsvp_based or False,
+        rsvp_url=payload.rsvp_url
     )
     db.add(event)
     db.commit()
@@ -285,7 +293,8 @@ def generate_event_report(request: Request, event_id: int, organizer_id: int, db
 
     # Header: Title and Status
     elements.append(Paragraph(f"EVENT REPORT: {event.title.upper()}", styles['Title']))
-    status_text = "COMPLETED" if event.date < str(datetime.now().date()) else "UPCOMING"
+    current_date_ist = get_ist_time().date()
+    status_text = "COMPLETED" if event.date < str(current_date_ist) else "UPCOMING"
     status_color = colors.green if status_text == "COMPLETED" else colors.blue
     elements.append(Paragraph(f"<font color='{status_color}'><b>STATUS: {status_text}</b></font>", styles['Normal']))
     elements.append(Spacer(1, 12))
@@ -409,7 +418,7 @@ def generate_event_report(request: Request, event_id: int, organizer_id: int, db
 
     # Footer
     elements.append(Spacer(1, 24))
-    elements.append(Paragraph(f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | CampusEvents Management", styles['Normal']))
+    elements.append(Paragraph(f"Generated on {get_ist_time().strftime('%Y-%m-%d %H:%M:%S')} (IST) | CampusEvents Management", styles['Normal']))
 
     doc.build(elements)
     buffer.seek(0)
@@ -431,6 +440,7 @@ def list_events(category_id: int = None, organizer_id: int = None, search: str =
         query = query.filter(models.Event.organizer_id == organizer_id)
     if search:
         query = query.filter((models.Event.title.ilike(f"%{search}%")) | (models.Event.description.ilike(f"%{search}%")))
+    
     return query.all()
 
 
@@ -507,6 +517,10 @@ def update_event(event_id: int, payload: schemas.EventUpdate, organizer_id: int,
         event.pdf_url = payload.pdf_url
     if payload.website_url:
         event.website_url = payload.website_url
+    if payload.is_rsvp_based is not None:
+        event.is_rsvp_based = payload.is_rsvp_based
+    if payload.rsvp_url is not None:
+        event.rsvp_url = payload.rsvp_url
     
     if payload.images is not None:
         # Replace existing images
@@ -542,6 +556,9 @@ def book_event(payload: schemas.ParticipantCreate, user_id: int, db: Session = D
     event = db.query(models.Event).filter(models.Event.id == payload.event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
+
+    if event.is_rsvp_based:
+        raise HTTPException(status_code=400, detail="This event requires RSVP on an external site.")
     
     existing = db.query(models.Participant).filter((models.Participant.user_id == user_id) & (models.Participant.event_id == payload.event_id)).first()
     if existing:

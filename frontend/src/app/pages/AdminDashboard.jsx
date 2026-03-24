@@ -95,6 +95,8 @@ export default function AdminDashboard() {
     image: '',
     pdf_url: '',
     website_url: '',
+    is_rsvp_based: false,
+    rsvp_url: '',
   });
 
   const [analytics, setAnalytics] = useState({
@@ -134,23 +136,32 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     try {
       const userId = localStorage.getItem('userId');
+      if (!userId) {
+        window.location.href = '/login';
+        return;
+      }
+
+      console.log('Admin Dashboard - Fetching data from http://127.0.0.1:8000');
       const [eventsRes, categoriesRes, analyticsRes] = await Promise.all([
-        fetch(`http://127.0.0.1:8000/api/events?organizer_id=${userId}`),
-        fetch('http://127.0.0.1:8000/api/categories'),
-        fetch(`http://127.0.0.1:8000/api/admin/analytics/${userId}`)
+        fetch(`http://127.0.0.1:8000/api/events?organizer_id=${userId}`, { signal: controller.signal }),
+        fetch('http://127.0.0.1:8000/api/categories', { signal: controller.signal }),
+        fetch(`http://127.0.0.1:8000/api/admin/analytics/${userId}`, { signal: controller.signal })
       ]);
-      console.log('Admin Dashboard - Events API Response:', eventsRes);
-      console.log('Admin Dashboard - Categories API Response:', categoriesRes);
-      console.log('Admin Dashboard - Analytics API Response:', analyticsRes);
+      
+      clearTimeout(timeoutId);
+      
+      if (!eventsRes.ok || !categoriesRes.ok || !analyticsRes.ok) {
+        throw new Error('One or more API requests failed. Please check if the backend is running.');
+      }
       
       const eventsData = await eventsRes.json();
-      console.log('Admin Dashboard - Events API Data:', eventsData);
       const categoriesData = await categoriesRes.json();
-      console.log('Admin Dashboard - Categories API Data:', categoriesData);
       const analyticsData = await analyticsRes.json();
-      console.log('Admin Dashboard - Analytics API Data:', analyticsData);
       
       setEvents(eventsData);
       setCategories(categoriesData);
@@ -166,7 +177,10 @@ export default function AdminDashboard() {
         });
       }
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error('Error fetching admin data:', err);
+      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
+      alert('ADMIN DASHBOARD ERROR: ' + msg);
     } finally {
       setLoading(false);
     }
@@ -213,6 +227,8 @@ export default function AdminDashboard() {
           image: imageUrl,
           pdf_url: pdfUrl,
           website_url: formData.website_url,
+          is_rsvp_based: formData.is_rsvp_based,
+          rsvp_url: formData.rsvp_url,
           images: imageUrls
         }),
       });
@@ -279,6 +295,8 @@ export default function AdminDashboard() {
           image: imageUrl,
           pdf_url: pdfUrl,
           website_url: formData.website_url,
+          is_rsvp_based: formData.is_rsvp_based,
+          rsvp_url: formData.rsvp_url,
           images: imageUrls.length > 0 ? imageUrls : undefined
         }),
       });
@@ -316,6 +334,8 @@ export default function AdminDashboard() {
       image: '',
       pdf_url: '',
       website_url: '',
+      is_rsvp_based: false,
+      rsvp_url: '',
     });
     setImageFiles([]);
     setPdfFile(null);
@@ -339,6 +359,8 @@ export default function AdminDashboard() {
       image: event.image || '',
       pdf_url: event.pdf_url || '',
       website_url: event.website_url || '',
+      is_rsvp_based: event.is_rsvp_based || false,
+      rsvp_url: event.rsvp_url || '',
     });
     setIsMultiDay(!!event.end_date);
     setShowCreateForm(true);
@@ -630,16 +652,7 @@ export default function AdminDashboard() {
                     />
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm mb-2 text-gray-300">Total Duration (e.g. 2 hrs, 3 days)</label>
-                    <input
-                      type="text"
-                      placeholder="Optional duration description"
-                      value={formData.duration}
-                      onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
-                    />
-                  </div>
+                  
 
                   <div>
                     <label className="block text-sm mb-2 text-gray-300">Location</label>
@@ -726,6 +739,35 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="is_rsvp_based"
+                      checked={formData.is_rsvp_based}
+                      onChange={(e) => setFormData({ ...formData, is_rsvp_based: e.target.checked })}
+                      className="w-5 h-5 rounded bg-white/10 border-white/20 text-purple-500 focus:ring-purple-500/20"
+                    />
+                    <label htmlFor="is_rsvp_based" className="text-sm font-medium text-gray-300 cursor-pointer">
+                      RSVP Based (Redirect to external link for booking)
+                    </label>
+                  </div>
+                  
+                  {formData.is_rsvp_based && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                      <label className="block text-xs mb-2 text-purple-400 uppercase tracking-wider font-semibold">RSVP Link</label>
+                      <input
+                        type="url"
+                        value={formData.rsvp_url}
+                        onChange={(e) => setFormData({ ...formData, rsvp_url: e.target.value })}
+                        placeholder="https://docs.google.com/forms/..."
+                        className="w-full px-4 py-3 rounded-xl bg-white/10 border border-purple-500/30 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                        required={formData.is_rsvp_based}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-4">
@@ -834,7 +876,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300">
-                            {event.category?.name || 'Uncategorized'}
+                            {event.category_name || 'Uncategorized'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-400">

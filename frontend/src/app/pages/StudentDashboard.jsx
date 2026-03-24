@@ -60,24 +60,39 @@ export default function StudentDashboard() {
 
   const fetchEventsAndBookings = async () => {
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
     try {
       const userId = localStorage.getItem('userId');
+      if (!userId) {
+        window.location.href = '/login';
+        return;
+      }
       
-      // Fetch all events
-      const eventsRes = await fetch('http://127.0.0.1:8000/api/events');
-      console.log('Student Dashboard - Events API Response:', eventsRes);
-      const eventsData = await eventsRes.json();
-      console.log('Student Dashboard - Events API Data:', eventsData);
-      setEvents(eventsData);
+      console.log('Student Dashboard - Fetching data from http://127.0.0.1:8000');
+      // Fetch all events and user's bookings
+      const [eventsRes, bookingsRes] = await Promise.all([
+        fetch('http://127.0.0.1:8000/api/events', { signal: controller.signal }),
+        fetch(`http://127.0.0.1:8000/api/participants/user/${userId}`, { signal: controller.signal })
+      ]);
+      
+      clearTimeout(timeoutId);
 
-      // Fetch user's bookings
-      const bookingsRes = await fetch(`http://127.0.0.1:8000/api/participants/user/${userId}`);
-      console.log('Student Dashboard - Bookings API Response:', bookingsRes);
+      if (!eventsRes.ok || !bookingsRes.ok) {
+        throw new Error('API connection failed. Please check if the backend is running.');
+      }
+      
+      const eventsData = await eventsRes.json();
       const bookingsData = await bookingsRes.json();
-      console.log('Student Dashboard - Bookings API Data:', bookingsData);
+      
+      setEvents(eventsData);
       setBookedEvents(bookingsData.map(b => b.event_id.toString()));
     } catch (err) {
+      clearTimeout(timeoutId);
       console.error('Error fetching dashboard data:', err);
+      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
+      alert('STUDENT DASHBOARD ERROR: ' + msg);
     } finally {
       setLoading(false);
     }
@@ -95,7 +110,7 @@ export default function StudentDashboard() {
   const filteredEvents = sortedEvents.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || event.category?.name === selectedCategory || event.category_id === parseInt(selectedCategory);
+    const matchesCategory = selectedCategory === 'All' || event.category_name === selectedCategory || event.category_id === parseInt(selectedCategory);
     
     const eventDate = new Date(event.date);
     const today = new Date();
@@ -110,7 +125,7 @@ export default function StudentDashboard() {
   });
 
   const groupedEvents = filteredEvents.reduce((acc, event) => {
-    const categoryName = event.category?.name || 'Uncategorized';
+    const categoryName = event.category_name || 'Uncategorized';
     if (!acc[categoryName]) {
       acc[categoryName] = [];
     }
@@ -118,7 +133,13 @@ export default function StudentDashboard() {
     return acc;
   }, {});
 
-  const handleBookEvent = async (eventId) => {
+  const handleBookEvent = async (event) => {
+    if (event.is_rsvp_based) {
+      window.open(event.rsvp_url, '_blank');
+      return;
+    }
+
+    const eventId = event.id;
     const userId = localStorage.getItem('userId');
     const isBooked = bookedEvents.includes(eventId.toString());
 
@@ -370,6 +391,9 @@ export default function StudentDashboard() {
                                 alt={event.title}
                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                               />
+                              <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-purple-500/20 backdrop-blur-md border border-purple-500/30 text-[10px] font-semibold text-purple-300 uppercase tracking-wider">
+                                {event.category_name || 'General'}
+                              </div>
                               {isBooked && (
                                 <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-xs flex items-center gap-1">
                                   <Bookmark className="w-3 h-3" />
@@ -438,14 +462,16 @@ export default function StudentDashboard() {
                                   Details
                                 </button>
                                 <button
-                                  onClick={() => handleBookEvent(event.id)}
+                                  onClick={() => handleBookEvent(event)}
                                   className={`flex-[2] py-3 text-center rounded-xl transition-all text-sm font-medium ${
-                                    isBooked
-                                      ? 'bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30'
-                                      : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg hover:shadow-purple-500/50'
+                                    event.is_rsvp_based
+                                      ? 'bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30'
+                                      : isBooked
+                                        ? 'bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30'
+                                        : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg hover:shadow-purple-500/50'
                                   }`}
                                 >
-                                  {isBooked ? 'Booked ✓' : 'Book Now'}
+                                  {event.is_rsvp_based ? 'RSVP External' : isBooked ? 'Booked ✓' : 'Book Now'}
                                 </button>
                               </div>
                             </div>
@@ -501,7 +527,7 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleBookEvent(event.id)}
+                      onClick={() => handleBookEvent(event)}
                       className="px-6 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/20 transition-all self-start md:self-center"
                     >
                       Cancel
@@ -677,9 +703,16 @@ export default function StudentDashboard() {
                 {/* Right Side - Info */}
                 <div className="flex flex-col">
                   <div className="inline-block self-start px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 mb-4">
-                    {selectedEvent.category?.name || 'General'}
+                    {selectedEvent.category_name || 'General'}
                   </div>
                   <h3 className="text-3xl lg:text-4xl text-white font-bold mb-6">{selectedEvent.title}</h3>
+                  
+                  {selectedEvent.is_rsvp_based && (
+                    <div className="mb-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm flex items-center gap-3">
+                      <Globe className="w-5 h-5 flex-shrink-0" />
+                      <span>This event uses external RSVP. Clicking "RSVP on External Site" will redirect you.</span>
+                    </div>
+                  )}
                   
                   <div className="space-y-4 mb-8">
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
@@ -725,16 +758,22 @@ export default function StudentDashboard() {
                     {new Date(selectedEvent.date) >= new Date().setHours(0,0,0,0) ? (
                       <button
                         onClick={() => {
-                          handleBookEvent(selectedEvent.id);
-                          setSelectedEvent(null);
+                          handleBookEvent(selectedEvent);
+                          if (!selectedEvent.is_rsvp_based) setSelectedEvent(null);
                         }}
                         className={`block w-full py-4 text-center rounded-2xl font-semibold transition-all transform hover:scale-[1.02] ${
-                          bookedEvents.includes(selectedEvent.id.toString())
-                            ? 'bg-red-500/20 border border-red-500/30 text-red-300'
-                            : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50'
+                          selectedEvent.is_rsvp_based
+                            ? 'bg-blue-600 text-white hover:shadow-blue-500/50 shadow-2xl'
+                            : bookedEvents.includes(selectedEvent.id.toString())
+                              ? 'bg-red-500/20 border border-red-500/30 text-red-300'
+                              : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-2xl hover:shadow-purple-500/50'
                         }`}
                       >
-                        {bookedEvents.includes(selectedEvent.id.toString()) ? 'Cancel Booking' : 'Book This Event'}
+                        {selectedEvent.is_rsvp_based 
+                          ? 'RSVP on External Site' 
+                          : bookedEvents.includes(selectedEvent.id.toString()) 
+                            ? 'Cancel Booking' 
+                            : 'Book This Event'}
                       </button>
                     ) : (
                       <div className="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-gray-500 font-medium text-center italic">
