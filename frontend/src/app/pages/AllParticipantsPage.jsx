@@ -202,6 +202,8 @@ export default function AllParticipantsPage() {
                             <tr className="border-b border-white/5 text-left">
                               <th className="px-6 py-4 text-sm text-gray-400">Student Name</th>
                               <th className="px-6 py-4 text-sm text-gray-400">Email Address</th>
+                              <th className="px-6 py-4 text-sm text-gray-400">Moodle ID</th>
+                              <th className="px-6 py-4 text-sm text-gray-400">Department</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5">
@@ -220,6 +222,14 @@ export default function AllParticipantsPage() {
                                     <Mail className="w-4 h-4 text-gray-500" />
                                     <span>{student.email}</span>
                                   </div>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-400">
+                                  {student.moodle_id || 'N/A'}
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-xs text-gray-400">
+                                    {student.department || 'N/A'}
+                                  </span>
                                 </td>
                               </tr>
                             ))}

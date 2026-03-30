@@ -295,12 +295,12 @@ export default function LandingPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0d1f] via-transparent to-transparent opacity-60"></div>
                     
                     {/* Slideshow Trigger Overlay */}
-                    {(event.images?.length > 0 || event.pdf_url) && (
+                    {(event.images?.length > 0) && (
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
                           const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
-                          if (event.pdf_url) items.push({ url: event.pdf_url, type: 'pdf' });
+                          // Removed PDF from slideshow items
                           const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
                           if (mainImg && !items.some(item => item.url === mainImg)) {
                             items.unshift({ url: mainImg, type: 'image' });
@@ -310,7 +310,7 @@ export default function LandingPage() {
                         className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
                       >
                         <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium">
-                          View Gallery / Report
+                          View Gallery
                         </div>
                       </button>
                     )}
@@ -554,9 +554,31 @@ export default function LandingPage() {
 
                   <div className="mb-8">
                     <h4 className="text-white font-semibold mb-3">About this event</h4>
-                    <p className="text-gray-400 leading-relaxed">
+                    <p className="text-gray-400 leading-relaxed mb-6">
                       {selectedEvent.description}
                     </p>
+                    
+                    {/* Shareable Link */}
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                      <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Share this event</div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={`${window.location.origin}/event/${selectedEvent.id}`}
+                          className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none"
+                        />
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/event/${selectedEvent.id}`);
+                            alert('Link copied to clipboard!');
+                          }}
+                          className="px-4 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg text-xs font-medium hover:bg-purple-500/30 transition-all"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="mt-auto pt-6 border-t border-white/10">

@@ -6,6 +6,8 @@ export default function SignUpPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [moodleId, setMoodleId] = useState('');
+  const [department, setDepartment] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [userType, setUserType] = useState('student');
@@ -51,6 +53,8 @@ export default function SignUpPage() {
           email: email,
           password: password,
           full_name: fullName,
+          moodle_id: moodleId,
+          department: department,
           // Backend will enforce that public signups are students only
           user_type: 'student',
         }),
@@ -66,18 +70,25 @@ export default function SignUpPage() {
         return;
       }
 
-      setSuccess('Account created successfully! Redirecting to login...');
+      setSuccess('Account created successfully! Logging you in...');
+      
+      // Store user info and token in localStorage (auto-login)
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('userId', data.user.id);
       
       // Clear form
       setFullName('');
       setEmail('');
+      setMoodleId('');
+      setDepartment('');
       setPassword('');
       setConfirmPassword('');
 
-      // Redirect to login after 2 seconds
+      // Redirect after 1 second
       setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+        navigate('/student/dashboard');
+      }, 1000);
     } catch (err) {
       setError('Connection error. Make sure the backend server is running on port 8000.');
       console.error('Sign up error:', err);
@@ -191,7 +202,7 @@ export default function SignUpPage() {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
+                    placeholder="Enter your full name"
                     className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                     required
                   />
@@ -208,12 +219,50 @@ export default function SignUpPage() {
                   <input
                     id="email"
                     type="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@university.edu"
-                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
-                    required
+                    placeholder="student@example.edu"
+                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Moodle ID Field */}
+                <div>
+                  <label htmlFor="moodleId" className="block text-sm mb-2 text-gray-300">
+                    Moodle ID
+                  </label>
+                  <input
+                    id="moodleId"
+                    type="text"
+                    required
+                    value={moodleId}
+                    onChange={(e) => setMoodleId(e.target.value)}
+                    placeholder="ID Number"
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  />
+                </div>
+
+                {/* Department Field */}
+                <div>
+                  <label htmlFor="department" className="block text-sm mb-2 text-gray-300">
+                    Department
+                  </label>
+                  <select
+                    id="department"
+                    required
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-[#1a1d35] border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  >
+                    <option value="" disabled>Select</option>
+                    <option value="Computer Science">CS</option>
+                    <option value="Information Technology">IT</option>
+                    <option value="AIML">AIML</option>
+                    <option value="Data Science ">Data Science </option>
+                  </select>
                 </div>
               </div>
 

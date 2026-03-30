@@ -17,6 +17,8 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
+    moodle_id = Column(String(50), unique=True, nullable=True)
+    department = Column(String(100), nullable=True)
     user_type = Column(String(50), nullable=False)  # 'student' or 'admin'
     created_at = Column(DateTime, default=get_ist_time, nullable=False)
     updated_at = Column(DateTime, default=get_ist_time, onupdate=get_ist_time)

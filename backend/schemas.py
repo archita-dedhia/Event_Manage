@@ -9,6 +9,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
     full_name: str = Field(..., max_length=255)
+    moodle_id: Optional[str] = Field(None, max_length=50)
+    department: Optional[str] = Field(None, max_length=100)
     user_type: str = Field(..., pattern="^(student|admin)$")  # 'student' or 'admin'
 
 
@@ -23,12 +25,17 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=6)
     full_name: Optional[str] = Field(None, max_length=255)
+    moodle_id: Optional[str] = Field(None, max_length=50)
+    department: Optional[str] = Field(None, max_length=100)
+    current_password: str # Required for verification
 
 
 class UserOut(BaseModel):
     id: int
     email: str
     full_name: str
+    moodle_id: Optional[str] = None
+    department: Optional[str] = None
     user_type: str
     created_at: datetime
 
@@ -168,6 +175,8 @@ class LoginResponse(BaseModel):
     success: bool
     user: UserOut
     message: str
+    access_token: str
+    token_type: str
 
 
 class AdminAnalytics(BaseModel):

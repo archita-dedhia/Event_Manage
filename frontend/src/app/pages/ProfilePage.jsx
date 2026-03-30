@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { User, Mail, Lock, ArrowLeft, Save, ShieldCheck, Calendar, ChevronRight } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
+import { User, Mail, Lock, ArrowLeft, Save, ShieldCheck, Calendar, ChevronRight, X } from 'lucide-react';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
+  const { user, login } = useAuth();
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [password, setPassword] = useState(user?.password || '');
+  const [moodleId, setMoodleId] = useState(user?.moodle_id || '');
+  const [department, setDepartment] = useState(user?.department || '');
+  const [newPassword, setNewPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -29,7 +34,7 @@ export default function ProfilePage() {
   };
 
   const handleUpdateProfile = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setLoading(true);
     setError('');
     setSuccess('');
@@ -38,17 +43,21 @@ export default function ProfilePage() {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const userId = localStorage.getItem('userId');
-      const response = await fetch(`http://127.0.0.1:8000/api/users/${userId}`, {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://127.0.0.1:8000/api/users/${user.id}`, {
         method: 'PUT',
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           full_name: fullName,
           email: email,
-          password: password,
+          moodle_id: moodleId,
+          department: department,
+          password: newPassword || undefined,
+          current_password: currentPassword
         }),
       });
 
@@ -59,11 +68,12 @@ export default function ProfilePage() {
         throw new Error(data.detail || 'Failed to update profile');
       }
 
-      // Update local storage
-      const updatedUser = { ...user, full_name: fullName, email: email, password: password };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
+      // Update auth context
+      login(data, token);
       setSuccess('Profile updated successfully!');
+      setShowVerifyModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
     } catch (err) {
       clearTimeout(timeoutId);
       const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
@@ -117,7 +127,13 @@ export default function ProfilePage() {
             </div>
           )}
 
-          <form onSubmit={handleUpdateProfile} className="space-y-8">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              setShowVerifyModal(true);
+            }} 
+            className="space-y-8"
+          >
             <div className="grid md:grid-cols-2 gap-6">
               {/* Full Name */}
               <div className="space-y-2">
@@ -150,17 +166,51 @@ export default function ProfilePage() {
               </div>
             </div>
 
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Moodle ID */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 ml-1">Moodle ID</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={moodleId}
+                    onChange={(e) => setMoodleId(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Department */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 ml-1">Department</label>
+                <select
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="w-full px-4 py-4 rounded-xl bg-[#1a1d35] border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  required
+                >
+                  <option value="" disabled>Select</option>
+                  <option value="Computer Science">CS</option>
+                  <option value="Information Technology">IT</option>
+                  <option value="AIML">AIML</option>
+                  <option value="Data Science ">Data Science </option>
+                </select>
+              </div>
+            </div>
+
             {/* Password */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300 ml-1">Update Password</label>
+              <label className="text-sm font-medium text-gray-300 ml-1">New Password (Leave blank to keep current)</label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  type="text"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
                   className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
-                  required
                 />
               </div>
             </div>
@@ -189,6 +239,64 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Verification Modal */}
+      {showVerifyModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-[#0a0d1f]/90 backdrop-blur-sm"
+            onClick={() => setShowVerifyModal(false)}
+          ></div>
+          
+          <div className="relative w-full max-w-md rounded-3xl bg-gradient-to-br from-white/10 to-white/[0.02] backdrop-blur-xl border border-white/10 p-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl text-white font-semibold">Verify Password</h2>
+              <button 
+                onClick={() => setShowVerifyModal(false)}
+                className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-gray-400 mb-6">
+              Please enter your current password to confirm these changes.
+            </p>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-6">
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="password"
+                  required
+                  autoFocus
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Current Password"
+                  className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                />
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowVerifyModal(false)}
+                  className="flex-1 px-6 py-4 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-6 py-4 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white font-semibold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-purple-500/20"
+                >
+                  {loading ? 'Verifying...' : 'Confirm'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Scroll to Top Button */}
       {showScrollTop && (

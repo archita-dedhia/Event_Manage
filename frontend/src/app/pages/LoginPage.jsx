@@ -47,8 +47,9 @@ export default function LoginPage() {
 
       if (data.success) {
         setSuccess('Login successful!');
-        // Store user info in localStorage
+        // Store user info and token in localStorage
         localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.access_token);
         localStorage.setItem('userId', data.user.id);
         
         // Redirect based on user type
@@ -206,7 +207,7 @@ export default function LoginPage() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@university.edu"
+                    placeholder="moodle_id@apsit.edu.in"
                     className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                     required
                   />

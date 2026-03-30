@@ -95,7 +95,7 @@ export default function PastEventsPage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-[#0a0d1f]/80 border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+          <Link to="/student/dashboard" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
             <span>Back to Home</span>
           </Link>
@@ -259,7 +259,7 @@ export default function PastEventsPage() {
                       onClick={() => {
                         const mainImg = selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image];
                         const items = (selectedEvent.images || []).map(img => ({ url: img.url, type: 'image' }));
-                        if (selectedEvent.pdf_url) items.push({ url: selectedEvent.pdf_url, type: 'pdf' });
+                        // Removed PDF from slideshow items
                         if (mainImg && !items.some(item => item.url === mainImg)) {
                           items.unshift({ url: mainImg, type: 'image' });
                         }

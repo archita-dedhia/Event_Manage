@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext.jsx';
 import { 
   Calendar, 
+  Calendar as CalendarIcon,
+  Clock,
   Users, 
   MapPin, 
   Home,
@@ -26,9 +29,11 @@ import {
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
+import GoogleCalendar from '../components/GoogleCalendar.jsx';
 
 export default function AdminDashboard() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { full_name: 'Admin' });
+  const { user, loading: authLoading, logout } = useAuth();
+  const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [categories, setCategories] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -45,40 +50,8 @@ export default function AdminDashboard() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
-  useEffect(() => {
-    let interval;
-    if (isAutoPlaying && selectedEvent && selectedEvent.images?.length > 1) {
-      interval = setInterval(() => {
-        setCurrentImageIndex((prev) => (prev + 1) % selectedEvent.images.length);
-      }, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [isAutoPlaying, selectedEvent]);
-
-  const handleDownloadReport = async (event) => {
-    try {
-      const organizerId = localStorage.getItem('userId');
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${event.id}/report?organizer_id=${organizerId}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to download report');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Report_${event.title.replace(/\s+/g, '_')}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err) {
-      console.error('Report error:', err);
-      alert('Error downloading report: ' + err.message);
-    }
-  };
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedCalendarEvent, setSelectedCalendarEvent] = useState(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -105,17 +78,72 @@ export default function AdminDashboard() {
     average_attendance: 0
   });
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
-    fetchData();
+    let interval;
+    if (isAutoPlaying && selectedEvent && selectedEvent.images?.length > 1) {
+      interval = setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % selectedEvent.images.length);
+      }, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [isAutoPlaying, selectedEvent]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/login');
+    }
+    if (user) {
+      fetchData();
+    }
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [authLoading, user]);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0d1f] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  const handleDownloadReport = async (event) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/events/${event.id}/report`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to download report');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Report_${event.title.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Report error:', err);
+      alert('Error downloading report: ' + err.message);
+    }
   };
 
   const handleFileUpload = async (file) => {
@@ -140,17 +168,21 @@ export default function AdminDashboard() {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const userId = localStorage.getItem('userId');
-      if (!userId) {
-        window.location.href = '/login';
+      const token = localStorage.getItem('token');
+      if (!token || !user) {
+        navigate('/login');
         return;
       }
 
       console.log('Admin Dashboard - Fetching data from http://127.0.0.1:8000');
+      const headers = {
+        'Authorization': `Bearer ${token}`
+      };
+
       const [eventsRes, categoriesRes, analyticsRes] = await Promise.all([
-        fetch(`http://127.0.0.1:8000/api/events?organizer_id=${userId}`, { signal: controller.signal }),
-        fetch('http://127.0.0.1:8000/api/categories', { signal: controller.signal }),
-        fetch(`http://127.0.0.1:8000/api/admin/analytics/${userId}`, { signal: controller.signal })
+        fetch(`http://127.0.0.1:8000/api/events?organizer_id=${user.id}`, { signal: controller.signal, headers }),
+        fetch('http://127.0.0.1:8000/api/categories', { signal: controller.signal, headers }),
+        fetch(`http://127.0.0.1:8000/api/admin/analytics`, { signal: controller.signal, headers })
       ]);
       
       clearTimeout(timeoutId);
@@ -195,6 +227,7 @@ export default function AdminDashboard() {
       const categoryId = parseInt(formData.category_id);
       if (isNaN(categoryId)) {
         alert('Please select a valid category');
+        setIsSubmitting(false);
         return;
       }
 
@@ -214,16 +247,23 @@ export default function AdminDashboard() {
         pdfUrl = await handleFileUpload(pdfFile);
       }
 
-      const organizerId = localStorage.getItem('userId');
-      const response = await fetch(`http://127.0.0.1:8000/api/events?organizer_id=${organizerId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/events`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({
-          ...formData,
+          title: formData.title,
+          description: formData.description,
+          date: formData.date,
           end_date: isMultiDay ? formData.end_date : null,
+          time: formData.time,
           end_time: formData.end_time || null,
           duration: formData.duration || null,
+          location: formData.location,
           category_id: parseInt(formData.category_id),
+          capacity: parseInt(formData.capacity),
           image: imageUrl,
           pdf_url: pdfUrl,
           website_url: formData.website_url,
@@ -263,6 +303,7 @@ export default function AdminDashboard() {
       const categoryId = parseInt(formData.category_id);
       if (isNaN(categoryId)) {
         alert('Please select a valid category');
+        setIsSubmitting(false);
         return;
       }
 
@@ -282,10 +323,12 @@ export default function AdminDashboard() {
         pdfUrl = await handleFileUpload(pdfFile);
       }
 
-      const organizerId = localStorage.getItem('userId');
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${editingEvent.id}?organizer_id=${organizerId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/events/${editingEvent.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({
           ...formData,
           end_date: isMultiDay ? formData.end_date : null,
@@ -343,6 +386,32 @@ export default function AdminDashboard() {
     setEditingEvent(null);
   };
 
+  const getOccupiedLocations = () => {
+    if (!formData.date || !formData.time) return [];
+    
+    const toMin = (t) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+
+    const newStart = toMin(formData.time);
+    const newEnd = formData.end_time ? toMin(formData.end_time) : newStart + 60;
+
+    return events
+      .filter(e => {
+        if (e.date !== formData.date) return false;
+        if (editingEvent && e.id === editingEvent.id) return false;
+        
+        const eStart = toMin(e.time);
+        const eEnd = e.end_time ? toMin(e.end_time) : eStart + 60;
+        
+        return newStart < eEnd && newEnd > eStart;
+      })
+      .map(e => e.location);
+  };
+
+  const occupiedLocations = getOccupiedLocations();
+
   const handleEditClick = (event) => {
     setEditingEvent(event);
     setFormData({
@@ -370,9 +439,11 @@ export default function AdminDashboard() {
     if (!confirm('Are you sure you want to delete this event?')) return;
 
     try {
-      const organizerId = localStorage.getItem('userId');
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${id}?organizer_id=${organizerId}`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/events/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
       });
 
       if (response.ok) {
@@ -385,7 +456,11 @@ export default function AdminDashboard() {
 
   const fetchParticipants = async (eventId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/participants/event/${eventId}`);
+      const response = await fetch(`http://127.0.0.1:8000/api/participants/event/${eventId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       const data = await response.json();
       setSelectedEventParticipants(data);
       setShowParticipantsModal(true);
@@ -482,20 +557,26 @@ export default function AdminDashboard() {
               <User className="w-5 h-5" />
               <span>Profile</span>
             </Link>
+            <button 
+              onClick={() => setShowCalendar(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Calendar className="w-5 h-5" />
+              <span>Calendar View</span>
+            </button>
           </nav>
 
           <div className="absolute bottom-6 left-6 right-6">
-            <Link 
-              to="/login"
+            <button 
               onClick={() => {
-                localStorage.removeItem('user');
-                localStorage.removeItem('userId');
+                logout();
+                navigate('/login');
               }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
             >
               <LogOut className="w-5 h-5" />
               <span>Logout</span>
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
@@ -654,16 +735,41 @@ export default function AdminDashboard() {
 
                   
 
-                  <div>
+                  <div className="space-y-2">
                     <label className="block text-sm mb-2 text-gray-300">Location</label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.location}
                       onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      placeholder="Event location"
-                      className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      className="w-full px-4 py-3 rounded-xl bg-[#1a1d35] border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                       required
-                    />
+                    >
+                      <option value="" disabled>Select Room/Lab</option>
+                      <optgroup label="Rooms" className="bg-[#0a0d1f]">
+                        {['301 Room', '302 Room', '401 Room', 'Auditorium', 'Seminar Hall'].map(loc => (
+                          <option key={loc} value={loc} disabled={occupiedLocations.includes(loc)}>
+                            {loc} {occupiedLocations.includes(loc) ? '(Occupied)' : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Labs" className="bg-[#0a0d1f]">
+                        {['301 Lab', '302 Lab', 'Project Lab', 'Network Lab'].map(loc => (
+                          <option key={loc} value={loc} disabled={occupiedLocations.includes(loc)}>
+                            {loc} {occupiedLocations.includes(loc) ? '(Occupied)' : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <option value="Other">Other (Custom)</option>
+                    </select>
+                    
+                    {formData.location === 'Other' && (
+                      <input
+                        type="text"
+                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        placeholder="Enter custom location"
+                        className="w-full mt-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                        required
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -768,6 +874,26 @@ export default function AdminDashboard() {
                       />
                     </div>
                   )}
+                </div>
+
+                <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-purple-400" />
+                    <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Report Management</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 italic">
+                    If no PDF report is uploaded, it will be marked as <span className="text-red-400 font-medium">Pending</span> in the dashboard. Admins should upload 2-3 images for the report.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Clock className="w-4 h-4 text-purple-400" />
+                    <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Time Conflict Check</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 italic">
+                    The system will automatically prevent scheduling overlapping events in the same Room/Lab.
+                  </p>
                 </div>
 
                 <div className="flex gap-4">
@@ -909,13 +1035,19 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4">
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              <button 
-                                onClick={() => handleDownloadReport(event)}
-                                className="p-2 rounded-lg text-gray-400 hover:text-green-400 hover:bg-green-500/10 transition-colors"
-                                title="Download PDF Report"
-                              >
-                                <Download className="w-4 h-4" />
-                              </button>
+                              {event.pdf_url ? (
+                                <button 
+                                  onClick={() => handleDownloadReport(event)}
+                                  className="p-2 rounded-lg text-gray-400 hover:text-green-400 hover:bg-green-500/10 transition-colors"
+                                  title="Download PDF Report"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="px-2 py-1 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 uppercase tracking-tighter">
+                                  Pending
+                                </span>
+                              )}
                               <button 
                                 onClick={() => {
                                   setSelectedEvent(event);
@@ -1020,6 +1152,34 @@ export default function AdminDashboard() {
         />
       )}
 
+      {/* Calendar Modal */}
+      {showCalendar && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+          <div 
+            className="absolute inset-0 bg-[#0a0d1f]/90 backdrop-blur-sm"
+            onClick={() => setShowCalendar(false)}
+          ></div>
+          
+          <div className="relative w-full max-w-6xl h-full max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl bg-[#0a0d1f] border border-white/10">
+            <div className="absolute top-6 right-6 z-[110]">
+              <button 
+                onClick={() => setShowCalendar(false)}
+                className="p-2 rounded-full bg-black/40 hover:bg-white/10 text-gray-400 hover:text-white transition-all backdrop-blur-md"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <GoogleCalendar 
+              events={events} 
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+                setShowCalendar(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
       {/* Event Details Modal */}
       {selectedEvent && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">

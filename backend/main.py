@@ -21,6 +21,27 @@ from reportlab.lib.units import inch
 from .database import get_db
 from . import models
 from . import schemas
+from . import auth_utils
+from fastapi.security import OAuth2PasswordBearer
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/login")
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    payload = auth_utils.decode_access_token(token)
+    if payload is None:
+        raise credentials_exception
+    email: str = payload.get("sub")
+    if email is None:
+        raise credentials_exception
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if user is None:
+        raise credentials_exception
+    return user
 
 
 def get_ist_time():
@@ -36,10 +57,16 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Create uploads directory if it doesn't exist
@@ -74,7 +101,7 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Could not upload file: {str(e)}")
 
 
-@app.post("/api/users/register", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
+@app.post("/api/users/register", response_model=schemas.LoginResponse, status_code=status.HTTP_201_CREATED)
 def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
     print(f"Registering user: {payload.email}")
     existing_user = db.query(models.User).filter(models.User.email == payload.email).first()
@@ -88,16 +115,28 @@ def register_user(payload: schemas.UserCreate, db: Session = Depends(get_db)):
             detail="Admin accounts cannot be created via signup",
         )
     
+    hashed_password = auth_utils.get_password_hash(payload.password)
     user = models.User(
         email=payload.email,
-        password=payload.password, # Store plain text as requested
+        password=hashed_password,
         full_name=payload.full_name,
+        moodle_id=payload.moodle_id,
+        department=payload.department,
         user_type=payload.user_type
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return user
+    
+    # Generate token immediately for registration to auto-login
+    access_token = auth_utils.create_access_token(data={"sub": user.email})
+    return {
+        "success": True, 
+        "user": user, 
+        "message": "User registered successfully", 
+        "access_token": access_token, 
+        "token_type": "bearer"
+    }
 
 
 @app.post("/api/users/login", response_model=schemas.LoginResponse)
@@ -106,10 +145,10 @@ def login_user(payload: schemas.UserLogin, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email, password, or role",
+            detail="Account not found, create account first",
         )
     
-    if user.password != payload.password: # Plain text comparison
+    if not auth_utils.verify_password(payload.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email, password, or role",
@@ -122,7 +161,19 @@ def login_user(payload: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="You are not authorized to log in with this role",
         )
     
-    return {"success": True, "user": user, "message": "Login successful"}
+    access_token = auth_utils.create_access_token(data={"sub": user.email})
+    return {
+        "success": True, 
+        "user": user, 
+        "message": "Login successful", 
+        "access_token": access_token, 
+        "token_type": "bearer"
+    }
+
+
+@app.get("/api/users/me", response_model=schemas.UserDetail)
+def get_current_user_info(user: models.User = Depends(get_current_user)):
+    return user
 
 
 @app.get("/api/users/{user_id}", response_model=schemas.UserDetail)
@@ -134,10 +185,17 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/api/users/{user_id}", response_model=schemas.UserOut)
-def update_user(user_id: int, payload: schemas.UserUpdate, db: Session = Depends(get_db)):
+def update_user(user_id: int, payload: schemas.UserUpdate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="You can only update your own profile")
+    
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Security: Verify current password before any updates
+    if not auth_utils.verify_password(payload.current_password, user.password):
+        raise HTTPException(status_code=401, detail="Current password verification failed")
     
     if payload.full_name is not None:
         user.full_name = payload.full_name
@@ -147,8 +205,16 @@ def update_user(user_id: int, payload: schemas.UserUpdate, db: Session = Depends
         if existing:
             raise HTTPException(status_code=400, detail="Email already registered")
         user.email = payload.email
+    if payload.moodle_id is not None:
+        # Check if moodle_id is already taken
+        existing_moodle = db.query(models.User).filter(models.User.moodle_id == payload.moodle_id, models.User.id != user_id).first()
+        if existing_moodle:
+            raise HTTPException(status_code=400, detail="Moodle ID already in use")
+        user.moodle_id = payload.moodle_id
+    if payload.department is not None:
+        user.department = payload.department
     if payload.password is not None:
-        user.password = payload.password # Store as plain text as requested earlier
+        user.password = auth_utils.get_password_hash(payload.password)
         
     db.commit()
     db.refresh(user)
@@ -156,7 +222,9 @@ def update_user(user_id: int, payload: schemas.UserUpdate, db: Session = Depends
 
 
 @app.post("/api/categories", response_model=schemas.CategoryOut, status_code=status.HTTP_201_CREATED)
-def create_category(payload: schemas.CategoryCreate, db: Session = Depends(get_db)):
+def create_category(payload: schemas.CategoryCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.user_type != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can create categories")
     category = models.Category(name=payload.name, description=payload.description)
     db.add(category)
     db.commit()
@@ -183,23 +251,34 @@ def get_category(category_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/api/events", response_model=schemas.EventOut, status_code=status.HTTP_201_CREATED)
-def create_event(payload: schemas.EventCreate, organizer_id: int, db: Session = Depends(get_db)):
+def create_event(payload: schemas.EventCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     # 1. Check if user is admin
-    user = db.query(models.User).filter(models.User.id == organizer_id).first()
-    if not user or user.user_type != 'admin':
+    if current_user.user_type != 'admin':
         raise HTTPException(status_code=403, detail="Only admins can create events")
     
-    # 2. Check for conflicts (same time, same location)
-    # Simple conflict check: same date and start time at same location
-    conflict = db.query(models.Event).filter(
-        and_(
-            models.Event.date == payload.date,
-            models.Event.time == payload.time,
-            models.Event.location == payload.location
-        )
-    ).first()
-    if conflict:
-        raise HTTPException(status_code=400, detail=f"An event '{conflict.title}' is already scheduled at this time and location")
+    # 2. Check for conflicts (same date, overlapping time, same location)
+    # Convert HH:MM to comparable integers (minutes from 00:00)
+    def to_min(t_str):
+        h, m = map(int, t_str.split(':'))
+        return h * 60 + m
+
+    new_start = to_min(payload.time)
+    new_end = to_min(payload.end_time) if payload.end_time else new_start + 60 # Default 1h
+    
+    # Simple overlap check: (StartA < EndB) and (EndA > StartB)
+    existing_events = db.query(models.Event).filter(
+        models.Event.date == payload.date,
+        models.Event.location == payload.location
+    ).all()
+    
+    for e in existing_events:
+        e_start = to_min(e.time)
+        e_end = to_min(e.end_time) if e.end_time else e_start + 60
+        if new_start < e_end and new_end > e_start:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Conflict: '{e.title}' is scheduled from {e.time} to {e.end_time or 'N/A'} in {payload.location}"
+            )
 
     category = db.query(models.Category).filter(models.Category.id == payload.category_id).first()
     if not category:
@@ -215,7 +294,7 @@ def create_event(payload: schemas.EventCreate, organizer_id: int, db: Session = 
         duration=payload.duration,
         location=payload.location,
         category_id=payload.category_id,
-        organizer_id=organizer_id,
+        organizer_id=current_user.id,
         capacity=payload.capacity,
         image=payload.image,
         pdf_url=payload.pdf_url,
@@ -264,10 +343,9 @@ def get_image_data(url: str):
 
 
 @app.get("/api/events/{event_id}/report")
-def generate_event_report(request: Request, event_id: int, organizer_id: int, db: Session = Depends(get_db)):
+def generate_event_report(request: Request, event_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     # 1. Verify admin
-    user = db.query(models.User).filter(models.User.id == organizer_id).first()
-    if not user or user.user_type != 'admin':
+    if current_user.user_type != 'admin':
         raise HTTPException(status_code=403, detail="Only admins can download reports")
 
     # 2. Get event details
@@ -278,7 +356,14 @@ def generate_event_report(request: Request, event_id: int, organizer_id: int, db
     # 3. Get registered participants
     participants = db.query(models.Participant).filter(models.Participant.event_id == event_id).all()
     
-    # 4. Create PDF
+    # 4. Check for report data
+    if not event.pdf_url:
+        # If no PDF exists, we might want to still allow downloading a basic auto-generated report
+        # but the user requested to show "pending" if not added.
+        # However, this endpoint is for downloading the actual PDF.
+        pass
+
+    # 5. Create PDF
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=30, bottomMargin=30)
     styles = getSampleStyleSheet()
@@ -298,6 +383,12 @@ def generate_event_report(request: Request, event_id: int, organizer_id: int, db
     status_color = colors.green if status_text == "COMPLETED" else colors.blue
     elements.append(Paragraph(f"<font color='{status_color}'><b>STATUS: {status_text}</b></font>", styles['Normal']))
     elements.append(Spacer(1, 12))
+
+    # Add 1 Page Report summary if exists
+    if event.description:
+        elements.append(Paragraph("<b>EXECUTIVE SUMMARY (1 PAGE REPORT):</b>", styles['Heading3']))
+        elements.append(Paragraph(event.description[:2000], styles['Normal'])) # Ensure it stays around 1 page
+        elements.append(Spacer(1, 18))
 
     # Event Info Table (Two columns)
     info_data = [
@@ -453,43 +544,40 @@ def get_event(event_id: int, db: Session = Depends(get_db)):
 
 
 @app.put("/api/events/{event_id}", response_model=schemas.EventOut)
-def update_event(event_id: int, payload: schemas.EventUpdate, organizer_id: int, db: Session = Depends(get_db)):
+def update_event(event_id: int, payload: schemas.EventUpdate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     event = db.query(models.Event).filter(models.Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    if event.organizer_id != organizer_id:
+    if event.organizer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own events")
     
-    # Check for time conflict on update
+    # Check for conflicts on update
+    def to_min(t_str):
+        h, m = map(int, t_str.split(':'))
+        return h * 60 + m
+
     new_date = payload.date or event.date
     new_time = payload.time or event.time
-    conflict = db.query(models.Event).filter(
-        models.Event.date == new_date,
-        models.Event.time == new_time,
-        models.Event.id != event_id
-    ).first()
-    if conflict:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Conflict: Event '{conflict.title}' is already scheduled at {new_date} {new_time}"
-        )
+    new_end_time = payload.end_time if payload.end_time is not None else event.end_time
+    new_location = payload.location or event.location
+
+    new_start = to_min(new_time)
+    new_end = to_min(new_end_time) if new_end_time else new_start + 60
     
-    if payload.date or payload.time or payload.location:
-        # Check for conflict excluding the current event
-        new_date = payload.date if payload.date else event.date
-        new_time = payload.time if payload.time else event.time
-        new_location = payload.location if payload.location else event.location
-        
-        conflict = db.query(models.Event).filter(
-            and_(
-                models.Event.id != event_id,
-                models.Event.date == new_date,
-                models.Event.time == new_time,
-                models.Event.location == new_location
+    existing_events = db.query(models.Event).filter(
+        models.Event.date == new_date,
+        models.Event.location == new_location,
+        models.Event.id != event_id
+    ).all()
+    
+    for e in existing_events:
+        e_start = to_min(e.time)
+        e_end = to_min(e.end_time) if e.end_time else e_start + 60
+        if new_start < e_end and new_end > e_start:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Conflict: '{e.title}' is scheduled from {e.time} to {e.end_time or 'N/A'} in {new_location}"
             )
-        ).first()
-        if conflict:
-            raise HTTPException(status_code=400, detail=f"An event '{conflict.title}' is already scheduled at this time and location")
 
     if payload.title:
         event.title = payload.title
@@ -535,11 +623,11 @@ def update_event(event_id: int, payload: schemas.EventUpdate, organizer_id: int,
 
 
 @app.delete("/api/events/{event_id}", response_model=schemas.MessageResponse)
-def delete_event(event_id: int, organizer_id: int, db: Session = Depends(get_db)):
+def delete_event(event_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     event = db.query(models.Event).filter(models.Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
-    if event.organizer_id != organizer_id:
+    if event.organizer_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own events")
     
     db.delete(event)
@@ -548,11 +636,7 @@ def delete_event(event_id: int, organizer_id: int, db: Session = Depends(get_db)
 
 
 @app.post("/api/participants", response_model=schemas.ParticipantOut, status_code=status.HTTP_201_CREATED)
-def book_event(payload: schemas.ParticipantCreate, user_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
+def book_event(payload: schemas.ParticipantCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     event = db.query(models.Event).filter(models.Event.id == payload.event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -560,14 +644,14 @@ def book_event(payload: schemas.ParticipantCreate, user_id: int, db: Session = D
     if event.is_rsvp_based:
         raise HTTPException(status_code=400, detail="This event requires RSVP on an external site.")
     
-    existing = db.query(models.Participant).filter((models.Participant.user_id == user_id) & (models.Participant.event_id == payload.event_id)).first()
+    existing = db.query(models.Participant).filter((models.Participant.user_id == current_user.id) & (models.Participant.event_id == payload.event_id)).first()
     if existing:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already registered for this event")
     
     if event.attendees >= event.capacity:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Event is full")
     
-    participant = models.Participant(user_id=user_id, event_id=payload.event_id)
+    participant = models.Participant(user_id=current_user.id, event_id=payload.event_id)
     db.add(participant)
     event.attendees += 1
     db.commit()
@@ -586,11 +670,11 @@ def get_event_participants(event_id: int, db: Session = Depends(get_db)):
 
 
 @app.delete("/api/participants/{participant_id}", response_model=schemas.MessageResponse)
-def cancel_booking(participant_id: int, user_id: int, db: Session = Depends(get_db)):
+def cancel_booking(participant_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
     participant = db.query(models.Participant).filter(models.Participant.id == participant_id).first()
     if not participant:
         raise HTTPException(status_code=404, detail="Booking not found")
-    if participant.user_id != user_id:
+    if participant.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only cancel your own bookings")
     
     event = db.query(models.Event).filter(models.Event.id == participant.event_id).first()
@@ -602,23 +686,21 @@ def cancel_booking(participant_id: int, user_id: int, db: Session = Depends(get_
     return {"message": "Booking cancelled successfully", "success": True}
 
 
-@app.get("/api/admin/participants/{organizer_id}", response_model=list[schemas.ParticipantDetail])
-def get_all_organizer_participants(organizer_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == organizer_id).first()
-    if not user or user.user_type != "admin":
+@app.get("/api/admin/participants", response_model=list[schemas.ParticipantDetail])
+def get_all_organizer_participants(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.user_type != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can access participants list")
     
     # Join Participant -> Event to filter by organizer_id
-    return db.query(models.Participant).join(models.Event).filter(models.Event.organizer_id == organizer_id).all()
+    return db.query(models.Participant).join(models.Event).filter(models.Event.organizer_id == current_user.id).all()
 
 
-@app.get("/api/admin/analytics/{organizer_id}", response_model=schemas.AdminAnalytics)
-def get_admin_analytics(organizer_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == organizer_id).first()
-    if not user or user.user_type != "admin":
+@app.get("/api/admin/analytics", response_model=schemas.AdminAnalytics)
+def get_admin_analytics(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.user_type != "admin":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can access analytics")
     
-    events = db.query(models.Event).filter(models.Event.organizer_id == organizer_id).all()
+    events = db.query(models.Event).filter(models.Event.organizer_id == current_user.id).all()
     total_events = len(events)
     total_attendees = sum(event.attendees for event in events)
     average_attendance = total_attendees / total_events if total_events > 0 else 0

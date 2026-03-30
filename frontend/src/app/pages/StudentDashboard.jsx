@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext.jsx';
 import { 
   Calendar, 
   Users, 
@@ -15,14 +16,17 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Globe
+  Globe,
+  Sparkles
 } from 'lucide-react';
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
+import GoogleCalendar from '../components/GoogleCalendar.jsx';
 
 export default function StudentDashboard() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || { full_name: 'Student' });
+  const { user, loading: authLoading, logout } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('Upcoming'); // Upcoming, Past, All
@@ -35,6 +39,13 @@ export default function StudentDashboard() {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [backendCategories, setBackendCategories] = useState(['All']);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   useEffect(() => {
     let interval;
     if (isAutoPlaying && selectedEvent && selectedEvent.images?.length > 1) {
@@ -46,17 +57,30 @@ export default function StudentDashboard() {
   }, [isAutoPlaying, selectedEvent]);
 
   useEffect(() => {
-    fetchEventsAndBookings();
+    if (!authLoading && !user) {
+      navigate('/login');
+    }
+    if (user) {
+      fetchEventsAndBookings();
+    }
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [authLoading, user]);
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#0a0d1f] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const fetchEventsAndBookings = async () => {
     setLoading(true);
@@ -64,30 +88,38 @@ export default function StudentDashboard() {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const userId = localStorage.getItem('userId');
-      if (!userId) {
-        window.location.href = '/login';
+      const token = localStorage.getItem('token');
+      if (!token || !user) {
+        navigate('/login');
         return;
       }
       
-      console.log('Student Dashboard - Fetching data from http://127.0.0.1:8000');
-      // Fetch all events and user's bookings
-      const [eventsRes, bookingsRes] = await Promise.all([
-        fetch('http://127.0.0.1:8000/api/events', { signal: controller.signal }),
-        fetch(`http://127.0.0.1:8000/api/participants/user/${userId}`, { signal: controller.signal })
+      const API_BASE_URL = 'http://127.0.0.1:8000';
+      console.log(`Student Dashboard - Fetching data from ${API_BASE_URL}`);
+      const headers = {
+        'Authorization': `Bearer ${token}`
+      };
+      
+      // Fetch all events, user's bookings, and categories
+      const [eventsRes, bookingsRes, categoriesRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/events`, { signal: controller.signal, headers }),
+        fetch(`${API_BASE_URL}/api/participants/user/${user.id}`, { signal: controller.signal, headers }),
+        fetch(`${API_BASE_URL}/api/categories`, { signal: controller.signal, headers })
       ]);
       
       clearTimeout(timeoutId);
 
-      if (!eventsRes.ok || !bookingsRes.ok) {
+      if (!eventsRes.ok || !bookingsRes.ok || !categoriesRes.ok) {
         throw new Error('API connection failed. Please check if the backend is running.');
       }
       
       const eventsData = await eventsRes.json();
       const bookingsData = await bookingsRes.json();
+      const categoriesData = await categoriesRes.json();
       
       setEvents(eventsData);
       setBookedEvents(bookingsData.map(b => b.event_id.toString()));
+      setBackendCategories(['All', ...categoriesData.map(c => c.name)]);
     } catch (err) {
       clearTimeout(timeoutId);
       console.error('Error fetching dashboard data:', err);
@@ -97,8 +129,6 @@ export default function StudentDashboard() {
       setLoading(false);
     }
   };
-
-  const categories = ['All', 'Technology', 'Cultural', 'Business', 'Workshop', 'Entertainment', 'Career'];
 
   // Sort events by date - upcoming first
   const sortedEvents = [...events].sort((a, b) => {
@@ -110,7 +140,11 @@ export default function StudentDashboard() {
   const filteredEvents = sortedEvents.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || event.category_name === selectedCategory || event.category_id === parseInt(selectedCategory);
+    
+    // Updated category match logic
+    const matchesCategory = selectedCategory === 'All' || 
+                           event.category_name === selectedCategory || 
+                           event.category_id === parseInt(selectedCategory);
     
     const eventDate = new Date(event.date);
     const today = new Date();
@@ -124,14 +158,19 @@ export default function StudentDashboard() {
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const groupedEvents = filteredEvents.reduce((acc, event) => {
-    const categoryName = event.category_name || 'Uncategorized';
-    if (!acc[categoryName]) {
-      acc[categoryName] = [];
-    }
-    acc[categoryName].push(event);
-    return acc;
-  }, {});
+  const groupedEvents = selectedCategory === 'All' 
+    ? { 'All Events': filteredEvents }
+    : filteredEvents.reduce((acc, event) => {
+        const categoryName = event.category_name || 'Uncategorized';
+        if (!acc[categoryName]) {
+          acc[categoryName] = [];
+        }
+        acc[categoryName].push(event);
+        return acc;
+      }, {});
+
+  // For "All Events" grouping, we want to show everything side-by-side by date
+  // We already have filteredEvents sorted by date.
 
   const handleBookEvent = async (event) => {
     if (event.is_rsvp_based) {
@@ -139,20 +178,32 @@ export default function StudentDashboard() {
       return;
     }
 
+    // Block booking for past events
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (eventDate < today) {
+      alert("Booking is not allowed for past events.");
+      return;
+    }
+
     const eventId = event.id;
-    const userId = localStorage.getItem('userId');
+    const token = localStorage.getItem('token');
     const isBooked = bookedEvents.includes(eventId.toString());
 
     try {
       if (isBooked) {
         // Find the participant record to delete
-        const response = await fetch(`http://127.0.0.1:8000/api/participants/user/${userId}`);
+        const response = await fetch(`http://127.0.0.1:8000/api/participants/user/${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const bookingsData = await response.json();
         const booking = bookingsData.find(b => b.event_id.toString() === eventId.toString());
         
         if (booking) {
-          const deleteRes = await fetch(`http://127.0.0.1:8000/api/participants/${booking.id}?user_id=${userId}`, {
+          const deleteRes = await fetch(`http://127.0.0.1:8000/api/participants/${booking.id}`, {
             method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
           });
           
           if (deleteRes.ok) {
@@ -160,9 +211,12 @@ export default function StudentDashboard() {
           }
         }
       } else {
-        const response = await fetch(`http://127.0.0.1:8000/api/participants?user_id=${userId}`, {
+        const response = await fetch(`http://127.0.0.1:8000/api/participants`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ event_id: parseInt(eventId) }),
         });
         
@@ -174,7 +228,9 @@ export default function StudentDashboard() {
         }
       }
       // Refresh events to update attendee counts
-      const eventsRes = await fetch('http://127.0.0.1:8000/api/events');
+      const eventsRes = await fetch('http://127.0.0.1:8000/api/events', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const eventsData = await eventsRes.json();
       setEvents(eventsData);
     } catch (err) {
@@ -251,20 +307,26 @@ export default function StudentDashboard() {
               <User className="w-5 h-5" />
               <span>Profile</span>
             </Link>
+            <button 
+              onClick={() => setShowCalendar(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Calendar className="w-5 h-5" />
+              <span>Calendar View</span>
+            </button>
           </nav>
 
           <div className="absolute bottom-6 left-6 right-6">
-            <Link 
-              to="/login"
+            <button 
               onClick={() => {
-                localStorage.removeItem('user');
-                localStorage.removeItem('userId');
+                logout();
+                navigate('/login');
               }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
             >
               <LogOut className="w-5 h-5" />
               <span>Logout</span>
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
@@ -321,7 +383,7 @@ export default function StudentDashboard() {
             {/* Category Filter */}
           <div className="mb-8 flex items-center gap-3 overflow-x-auto pb-2">
             <Filter className="w-5 h-5 text-gray-400 flex-shrink-0" />
-            {categories.map((category) => (
+            {backendCategories.map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
@@ -463,7 +525,8 @@ export default function StudentDashboard() {
                                 </button>
                                 <button
                                   onClick={() => handleBookEvent(event)}
-                                  className={`flex-[2] py-3 text-center rounded-xl transition-all text-sm font-medium ${
+                                  disabled={new Date(event.date) < new Date().setHours(0,0,0,0)}
+                                  className={`flex-[2] py-3 text-center rounded-xl transition-all text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                                     event.is_rsvp_based
                                       ? 'bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30'
                                       : isBooked
@@ -471,7 +534,7 @@ export default function StudentDashboard() {
                                         : 'bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg hover:shadow-purple-500/50'
                                   }`}
                                 >
-                                  {event.is_rsvp_based ? 'RSVP External' : isBooked ? 'Booked ✓' : 'Book Now'}
+                                  {new Date(event.date) < new Date().setHours(0,0,0,0) ? 'Ended' : (event.is_rsvp_based ? 'RSVP External' : isBooked ? 'Booked ✓' : 'Book Now')}
                                 </button>
                               </div>
                             </div>
@@ -597,11 +660,12 @@ export default function StudentDashboard() {
                     {/* Slideshow Trigger Overlay */}
                     <button 
                       onClick={() => {
-                        const items = selectedEvent.images?.length > 0 
-                          ? selectedEvent.images.map(img => ({ url: img.url, type: 'image' }))
-                          : [{ url: (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image]), type: 'image' }];
-                        
-                        if (selectedEvent.pdf_url) items.push({ url: selectedEvent.pdf_url, type: 'pdf' });
+                        const mainImg = selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image];
+                        const items = (selectedEvent.images || []).map(img => ({ url: img.url, type: 'image' }));
+                        // Removed PDF from slideshow items
+                        if (mainImg && !items.some(item => item.url === mainImg)) {
+                          items.unshift({ url: mainImg, type: 'image' });
+                        }
                         setSlideshowItems(items);
                       }}
                       className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
@@ -748,9 +812,31 @@ export default function StudentDashboard() {
 
                   <div className="mb-8">
                     <h4 className="text-white font-semibold mb-3">About this event</h4>
-                    <p className="text-gray-400 leading-relaxed">
+                    <p className="text-gray-400 leading-relaxed mb-6">
                       {selectedEvent.description}
                     </p>
+                    
+                    {/* Shareable Link */}
+                    <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                      <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Share this event</div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          readOnly 
+                          value={`${window.location.origin}/event/${selectedEvent.id}`}
+                          className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none"
+                        />
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(`${window.location.origin}/event/${selectedEvent.id}`);
+                            alert('Link copied to clipboard!');
+                          }}
+                          className="px-4 py-2 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-lg text-xs font-medium hover:bg-purple-500/30 transition-all"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Booking Action */}
@@ -784,6 +870,34 @@ export default function StudentDashboard() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Calendar Modal */}
+      {showCalendar && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+          <div 
+            className="absolute inset-0 bg-[#0a0d1f]/90 backdrop-blur-sm"
+            onClick={() => setShowCalendar(false)}
+          ></div>
+          
+          <div className="relative w-full max-w-6xl h-full max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl bg-[#0a0d1f] border border-white/10">
+            <div className="absolute top-6 right-6 z-[110]">
+              <button 
+                onClick={() => setShowCalendar(false)}
+                className="p-2 rounded-full bg-black/40 hover:bg-white/10 text-gray-400 hover:text-white transition-all backdrop-blur-md"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <GoogleCalendar 
+              events={events} 
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+                setShowCalendar(false);
+              }}
+            />
           </div>
         </div>
       )}

@@ -75,9 +75,9 @@ def add_sample_categories(db_url):
             db.add(category)
         
         db.commit()
-        print("✅ Sample categories added successfully!")
+        print("Sample categories added successfully!")
     except Exception as e:
-        print(f"❌ Error adding categories: {e}")
+        print(f"Error adding categories: {e}")
     finally:
         db.close()
 
@@ -107,40 +107,32 @@ def add_sample_users(db_url):
             User(
                 email="student@campus.edu",
                 password="password123",
-                full_name="John Student",
+                full_name="Student User",
+                moodle_id="12345678",
+                department="Computer Science",
                 user_type="student"
-            ),
-            User(
-                email="student2@campus.edu",
-                password="password123",
-                full_name="Jane Doe",
-                user_type="student"
-            ),
+            )
         ]
         
         for user in users:
             db.add(user)
-        
+            
         db.commit()
-        print("✅ Sample users added successfully!")
-        print("\n📝 Demo Credentials:")
-        print("   Admin:   admin@campus.edu / password123")
-        print("   Student: student@campus.edu / password123")
-        print("   Student: student2@campus.edu / password123")
+        print("Sample users added successfully!")
     except Exception as e:
-        print(f"❌ Error adding users: {e}")
+        print(f"Error adding users: {e}")
     finally:
         db.close()
 
 
 def add_sample_events(db_url):
-    """Add sample events to the database"""
+    """Add sample events"""
     from sqlalchemy.orm import sessionmaker
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=create_engine(db_url))
     db = SessionLocal()
     
     try:
-        from .models import Event, Category
+        # Check if events already exist
         existing = db.query(Event).first()
         if existing:
             print("Events already exist, skipping...")
@@ -153,7 +145,7 @@ def add_sample_events(db_url):
         from .models import User
         admin = db.query(User).filter(User.user_type == "admin").first()
         if not admin:
-            print("❌ No admin user found to be organizer. Skipping events.")
+            print("No admin user found to be organizer. Skipping events.")
             return
         
         organizer_id = admin.id
@@ -238,35 +230,34 @@ def add_sample_events(db_url):
             db.add(event)
             
         db.commit()
-        print("✅ Sample events added successfully!")
+        print("Sample events added successfully!")
     except Exception as e:
-        print(f"❌ Error adding events: {e}")
+        print(f"Error adding events: {e}")
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    print("🚀 Starting database initialization...\n")
+    print("Starting database initialization...\n")
     
-    print("1️⃣  Creating database...")
+    print("1. Creating database...")
     create_database_if_not_exists()
-    print("✅ Database created/verified\n")
+    print("Database created/verified\n")
     
-    print("2️⃣  Creating tables...")
+    print("2. Creating tables...")
     create_tables()
-    print("✅ All tables created successfully!\n")
+    print("All tables created successfully!\n")
     
-    print("3️⃣  Adding sample categories...")
+    print("3. Adding sample categories...")
     db_url = get_database_url(include_db=True)
     add_sample_categories(db_url)
     
-    print("\n4️⃣  Adding sample users...")
+    print("\n4. Adding sample users...")
     add_sample_users(db_url)
     
-    print("\n5️⃣  Adding sample events...")
+    print("\n5. Adding sample events...")
     add_sample_events(db_url)
     
     print("\n" + "="*50)
-    print("✅ Database setup complete!")
+    print("Database setup complete!")
     print("="*50)
-
