@@ -13,6 +13,12 @@ export default function LandingPage() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
+
+  const containsCross = (text) => {
+    if (!text) return false;
+    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    return crossSymbols.some(symbol => text.includes(symbol));
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [searchDate, setSearchDate] = useState('');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -78,6 +84,11 @@ export default function LandingPage() {
   };
 
   const filteredEvents = events.filter(event => {
+    // Calendar Cross-Items Restriction
+    if (containsCross(event.title) || containsCross(event.description)) {
+      return false;
+    }
+
     // Include events that are today or in the future
     const eventDate = new Date(event.date);
     const today = new Date();

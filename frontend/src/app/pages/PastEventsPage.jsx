@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Calendar, ChevronRight, ArrowLeft, Download, Eye, MapPin, Users, X, Activity, FileText, Globe, Sparkles, ChevronLeft } from 'lucide-react';
+import { Calendar, ChevronRight, ArrowLeft, Download, Eye, MapPin, Users, X, Activity, FileText, Globe, Sparkles, ChevronLeft, Search, Edit2, Upload, Image as ImageIcon } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 import { eventImages } from '../data/eventImages.js';
 import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
@@ -13,7 +13,17 @@ export default function PastEventsPage() {
   const [slideshowItems, setSlideshowItems] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newImages, setNewImages] = useState([]);
+  const [newReport, setNewReport] = useState(null);
   const user = JSON.parse(localStorage.getItem('user')) || null;
+
+  const containsCross = (text) => {
+    if (!text) return false;
+    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    return crossSymbols.some(symbol => text.includes(symbol));
+  };
 
   useEffect(() => {
     fetchEvents();
@@ -31,8 +41,16 @@ export default function PastEventsPage() {
 
   const handleDownloadReport = async (event) => {
     try {
-      const organizerId = localStorage.getItem('userId');
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${event.id}/report?organizer_id=${organizerId}`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`http://127.0.0.1:8000/api/events/${event.id}/report`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -70,10 +88,15 @@ export default function PastEventsPage() {
       }
       const data = await response.json();
       
-      // Filter for past events
+      // Filter for past events and check for cross symbols
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const past = data.filter(event => {
+        // Calendar Cross-Items Restriction
+        if (containsCross(event.title) || containsCross(event.description)) {
+          return false;
+        }
+
         const eventDate = new Date(event.date);
         return eventDate < today;
       });
@@ -87,6 +110,78 @@ export default function PastEventsPage() {
       setFetchError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdatePastEvent = async (e) => {
+    e.preventDefault();
+    if (!editingEvent || isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // 1. Upload new images if any
+      let updatedImages = [...(editingEvent.images || [])];
+      if (newImages.length > 0) {
+        for (const file of newImages) {
+          const formData = new FormData();
+          formData.append('file', file);
+          const uploadRes = await fetch('http://127.0.0.1:8000/api/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            updatedImages.push(uploadData.url);
+          }
+        }
+      }
+
+      // 2. Upload new report if any
+      let updatedReportUrl = editingEvent.pdf_url;
+      if (newReport) {
+        const formData = new FormData();
+        formData.append('file', newReport);
+        const uploadRes = await fetch('http://127.0.0.1:8000/api/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        if (uploadRes.ok) {
+          const uploadData = await uploadRes.json();
+          updatedReportUrl = uploadData.url;
+        }
+      }
+
+      // 3. Update event in backend
+      const response = await fetch(`http://127.0.0.1:8000/api/events/${editingEvent.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          images: updatedImages,
+          pdf_url: updatedReportUrl
+        })
+      });
+
+      if (response.ok) {
+        alert('Event updated successfully!');
+        setEditingEvent(null);
+        setNewImages([]);
+        setNewReport(null);
+        fetchEvents();
+      } else {
+        const err = await response.json();
+        throw new Error(err.detail || 'Failed to update event');
+      }
+    } catch (err) {
+      alert('Error updating event: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -169,27 +264,41 @@ export default function PastEventsPage() {
                   <h3 className="text-xl font-semibold mb-2 group-hover:text-purple-400 transition-colors line-clamp-1">{event.title}</h3>
                   <p className="text-gray-400 text-sm line-clamp-2 mb-6 flex-1">{event.description}</p>
                   
-                  <div className="flex items-center gap-3 mt-auto">
+                  <div className="flex items-center gap-3 mt-auto flex-wrap">
                     <button 
                       onClick={() => {
                         setSelectedEvent(event);
                         setCurrentImageIndex(0);
                         setIsAutoPlaying(true);
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all text-sm font-medium"
+                      className="flex-1 min-w-[100px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all text-sm font-medium"
                     >
                       <Eye className="w-4 h-4" />
                       Details
                     </button>
                     {user?.user_type === 'admin' && (
-                      <button 
-                        onClick={() => handleDownloadReport(event)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 transition-all text-sm font-medium"
-                        title="Download Admin Report"
-                      >
-                        <Download className="w-4 h-4" />
-                        Report
-                      </button>
+                      <>
+                        <button 
+                          onClick={() => handleDownloadReport(event)}
+                          className="flex-1 min-w-[100px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 transition-all text-sm font-medium"
+                          title="Download Admin Report"
+                        >
+                          <Download className="w-4 h-4" />
+                          Report
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setEditingEvent(event);
+                            setNewImages([]);
+                            setNewReport(null);
+                          }}
+                          className="flex-1 min-w-[100px] flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all text-sm font-medium"
+                          title="Edit Images & Report"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          Edit
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -411,6 +520,106 @@ export default function PastEventsPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Past Event Modal */}
+      {editingEvent && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="absolute inset-0 bg-[#0a0d1f]/95 backdrop-blur-md"
+            onClick={() => !isSubmitting && setEditingEvent(null)}
+          ></div>
+          
+          <div className="relative w-full max-w-2xl rounded-3xl bg-gradient-to-br from-white/10 to-white/[0.02] backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden">
+            <div className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Update Past Event</h2>
+                  <p className="text-gray-400 text-sm mt-1">{editingEvent.title}</p>
+                </div>
+                <button 
+                  onClick={() => setEditingEvent(null)}
+                  className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdatePastEvent} className="space-y-8">
+                {/* Image Upload */}
+                <div className="space-y-4">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+                    <ImageIcon className="w-4 h-4 text-purple-400" />
+                    Add Event Images (Geo-tagged)
+                  </label>
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => setNewImages(Array.from(e.target.files))}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="p-8 border-2 border-dashed border-white/10 rounded-2xl bg-white/[0.02] group-hover:bg-white/[0.05] group-hover:border-purple-500/50 transition-all text-center">
+                      <Upload className="w-8 h-8 text-gray-500 mx-auto mb-3 group-hover:text-purple-400 transition-colors" />
+                      <p className="text-gray-400 text-sm">
+                        {newImages.length > 0 
+                          ? `${newImages.length} images selected` 
+                          : "Drop images here or click to browse"}
+                      </p>
+                      <p className="text-gray-600 text-xs mt-2">Supports JPG, PNG (Max 5MB per image)</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Report Upload */}
+                <div className="space-y-4">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+                    <FileText className="w-4 h-4 text-blue-400" />
+                    Upload 1-Page Event Report (PDF)
+                  </label>
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => setNewReport(e.target.files[0])}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="p-8 border-2 border-dashed border-white/10 rounded-2xl bg-white/[0.02] group-hover:bg-white/[0.05] group-hover:border-blue-500/50 transition-all text-center">
+                      <FileText className="w-8 h-8 text-gray-500 mx-auto mb-3 group-hover:text-blue-400 transition-colors" />
+                      <p className="text-gray-400 text-sm">
+                        {newReport ? newReport.name : "Drop PDF report here or click to browse"}
+                      </p>
+                      <p className="text-gray-600 text-xs mt-2">One-page PDF summary of the event</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditingEvent(null)}
+                    className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || (newImages.length === 0 && !newReport)}
+                    className="flex-1 px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold hover:shadow-[0_0_30px_-5px_rgba(147,51,234,0.5)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>Updating...</span>
+                      </div>
+                    ) : "Update Event Data"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

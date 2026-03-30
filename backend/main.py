@@ -256,7 +256,20 @@ def create_event(payload: schemas.EventCreate, current_user: models.User = Depen
     if current_user.user_type != 'admin':
         raise HTTPException(status_code=403, detail="Only admins can create events")
     
-    # 2. Check for conflicts (same date, overlapping time, same location)
+    # 2. Calendar Cross-Items Restriction
+    # Prevent addition of items containing visual "cross" symbols (×, X, or similar)
+    cross_symbols = ['×', 'X', 'x', '✕', '✖', '❌']
+    def contains_cross(text):
+        if not text: return False
+        return any(symbol in text for symbol in cross_symbols)
+    
+    if contains_cross(payload.title) or contains_cross(payload.description):
+        raise HTTPException(
+            status_code=400, 
+            detail="Event title or description cannot contain cross symbols (X, x, ×, etc.)"
+        )
+    
+    # 3. Check for conflicts (same date, overlapping time, same location)
     # Convert HH:MM to comparable integers (minutes from 00:00)
     def to_min(t_str):
         h, m = map(int, t_str.split(':'))
@@ -637,6 +650,10 @@ def delete_event(event_id: int, current_user: models.User = Depends(get_current_
 
 @app.post("/api/participants", response_model=schemas.ParticipantOut, status_code=status.HTTP_201_CREATED)
 def book_event(payload: schemas.ParticipantCreate, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 0. Check if user is a student
+    if current_user.user_type != 'student':
+        raise HTTPException(status_code=403, detail="Only students can book events")
+    
     event = db.query(models.Event).filter(models.Event.id == payload.event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")

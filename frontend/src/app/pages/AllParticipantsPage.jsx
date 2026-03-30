@@ -42,9 +42,12 @@ export default function AllParticipantsPage() {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const userId = localStorage.getItem('userId');
-      const response = await fetch(`http://127.0.0.1:8000/api/admin/participants/${userId}`, {
-        signal: controller.signal
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://127.0.0.1:8000/api/admin/participants`, {
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       clearTimeout(timeoutId);

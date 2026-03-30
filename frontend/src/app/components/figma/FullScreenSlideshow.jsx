@@ -5,21 +5,26 @@ export default function FullScreenSlideshow({ items, initialIndex = 0, onClose, 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isPlaying, setIsPlaying] = useState(true);
 
+  const filteredItems = items.filter(item => {
+    const url = typeof item === 'string' ? item : item.url;
+    return !url?.toLowerCase().endsWith('.pdf');
+  });
+
   const handleNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % items.length);
-  }, [items.length]);
+    setCurrentIndex((prev) => (prev + 1) % filteredItems.length);
+  }, [filteredItems.length]);
 
   const handlePrev = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + items.length) % items.length);
-  }, [items.length]);
+    setCurrentIndex((prev) => (prev - 1 + filteredItems.length) % filteredItems.length);
+  }, [filteredItems.length]);
 
   useEffect(() => {
     let interval;
-    if (isPlaying && items.length > 1) {
+    if (isPlaying && filteredItems.length > 1) {
       interval = setInterval(handleNext, autoPlayInterval);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, handleNext, autoPlayInterval, items.length]);
+  }, [isPlaying, handleNext, autoPlayInterval, filteredItems.length]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -44,8 +49,9 @@ export default function FullScreenSlideshow({ items, initialIndex = 0, onClose, 
     };
   }, [onClose, handleNext, handlePrev, isPlaying]);
 
-  const currentItem = items[currentIndex];
-  const isPdf = typeof currentItem === 'string' ? currentItem.toLowerCase().endsWith('.pdf') : currentItem.url?.toLowerCase().endsWith('.pdf');
+  if (filteredItems.length === 0) return null;
+
+  const currentItem = filteredItems[currentIndex];
   const url = typeof currentItem === 'string' ? currentItem : currentItem.url;
 
   return (
@@ -54,9 +60,9 @@ export default function FullScreenSlideshow({ items, initialIndex = 0, onClose, 
       <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center bg-gradient-to-b from-black/70 to-transparent z-10">
         <div className="flex items-center gap-4">
           <div className="text-white font-medium bg-black/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
-            {currentIndex + 1} / {items.length}
+            {currentIndex + 1} / {filteredItems.length}
           </div>
-          {items.length > 1 && (
+          {filteredItems.length > 1 && (
             <button 
               onClick={() => setIsPlaying(!isPlaying)}
               className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all backdrop-blur-md"
@@ -77,27 +83,17 @@ export default function FullScreenSlideshow({ items, initialIndex = 0, onClose, 
       {/* Main Content */}
       <div className="w-full h-full flex items-center justify-center p-4 md:p-12 overflow-hidden">
         <div className="relative w-full h-full flex items-center justify-center">
-          {isPdf ? (
-            <div className="w-full h-full max-w-5xl bg-white rounded-lg overflow-hidden shadow-2xl">
-              <iframe 
-                src={url} 
-                className="w-full h-full border-none"
-                title="PDF Viewer"
-              />
-            </div>
-          ) : (
-            <img 
-              key={url}
-              src={url} 
-              alt={`Slide ${currentIndex + 1}`}
-              className="max-w-full max-h-full object-contain select-none shadow-2xl animate-in zoom-in-95 duration-500"
-            />
-          )}
+          <img 
+            key={url}
+            src={url} 
+            alt={`Slide ${currentIndex + 1}`}
+            className="max-w-full max-h-full object-contain select-none shadow-2xl animate-in zoom-in-95 duration-500"
+          />
         </div>
       </div>
 
       {/* Navigation Buttons */}
-      {items.length > 1 && (
+      {filteredItems.length > 1 && (
         <>
           <button 
             onClick={(e) => { e.stopPropagation(); setIsPlaying(false); handlePrev(); }}

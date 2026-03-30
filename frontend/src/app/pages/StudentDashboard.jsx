@@ -61,6 +61,10 @@ export default function StudentDashboard() {
       navigate('/login');
     }
     if (user) {
+      if (user.user_type === 'admin') {
+        navigate('/admin/dashboard');
+        return;
+      }
       fetchEventsAndBookings();
     }
     const handleScroll = () => {
@@ -81,6 +85,12 @@ export default function StudentDashboard() {
   if (!user) {
     return null;
   }
+
+  const containsCross = (text) => {
+    if (!text) return false;
+    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    return crossSymbols.some(symbol => text.includes(symbol));
+  };
 
   const fetchEventsAndBookings = async () => {
     setLoading(true);
@@ -138,6 +148,11 @@ export default function StudentDashboard() {
   });
 
   const filteredEvents = sortedEvents.filter(event => {
+    // Calendar Cross-Items Restriction
+    if (containsCross(event.title) || containsCross(event.description)) {
+      return false;
+    }
+
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -882,15 +897,6 @@ export default function StudentDashboard() {
           ></div>
           
           <div className="relative w-full max-w-6xl h-full max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl bg-[#0a0d1f] border border-white/10">
-            <div className="absolute top-6 right-6 z-[110]">
-              <button 
-                onClick={() => setShowCalendar(false)}
-                className="p-2 rounded-full bg-black/40 hover:bg-white/10 text-gray-400 hover:text-white transition-all backdrop-blur-md"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
             <GoogleCalendar 
               events={events} 
               onEventClick={(event) => {

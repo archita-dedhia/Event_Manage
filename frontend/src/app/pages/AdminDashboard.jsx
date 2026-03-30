@@ -54,6 +54,7 @@ export default function AdminDashboard() {
   const [selectedCalendarEvent, setSelectedCalendarEvent] = useState(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customLocation, setCustomLocation] = useState('');
   const [formData, setFormData] = useState({
     title: '',
     date: '',
@@ -78,6 +79,12 @@ export default function AdminDashboard() {
     average_attendance: 0
   });
 
+  const containsCross = (text) => {
+    if (!text) return false;
+    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    return crossSymbols.some(symbol => text.includes(symbol));
+  };
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -97,6 +104,10 @@ export default function AdminDashboard() {
       navigate('/login');
     }
     if (user) {
+      if (user.user_type !== 'admin') {
+        navigate('/student/dashboard');
+        return;
+      }
       fetchData();
     }
     const handleScroll = () => {
@@ -221,6 +232,16 @@ export default function AdminDashboard() {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    // Calendar Cross-Items Restriction
+    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    const containsCross = (text) => crossSymbols.some(symbol => text.includes(symbol));
+    
+    if (containsCross(formData.title) || containsCross(formData.description)) {
+      alert('Event title or description cannot contain cross symbols (X, x, ×, etc.)');
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
@@ -297,6 +318,16 @@ export default function AdminDashboard() {
   const handleUpdateEvent = async (e) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    // Calendar Cross-Items Restriction
+    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    const containsCross = (text) => crossSymbols.some(symbol => text.includes(symbol));
+    
+    if (containsCross(formData.title) || containsCross(formData.description)) {
+      alert('Event title or description cannot contain cross symbols (X, x, ×, etc.)');
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
@@ -738,8 +769,15 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <label className="block text-sm mb-2 text-gray-300">Location</label>
                     <select
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      value={['301 Room', '302 Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab'].includes(formData.location) ? formData.location : (formData.location ? 'Other' : '')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'Other') {
+                          setFormData({ ...formData, location: customLocation });
+                        } else {
+                          setFormData({ ...formData, location: val });
+                        }
+                      }}
                       className="w-full px-4 py-3 rounded-xl bg-[#1a1d35] border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                       required
                     >
@@ -761,10 +799,15 @@ export default function AdminDashboard() {
                       <option value="Other">Other (Custom)</option>
                     </select>
                     
-                    {formData.location === 'Other' && (
+                    {(!['301 Room', '302 Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab'].includes(formData.location) && formData.location !== '') && (
                       <input
                         type="text"
-                        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                        value={formData.location === 'Other' ? customLocation : formData.location}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomLocation(val);
+                          setFormData({ ...formData, location: val });
+                        }}
                         placeholder="Enter custom location"
                         className="w-full mt-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                         required
@@ -795,6 +838,11 @@ export default function AdminDashboard() {
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all resize-none"
                     required
                   />
+                  {(containsCross(formData.title) || containsCross(formData.description)) && (
+                    <p className="mt-2 text-sm text-red-400 font-medium animate-in fade-in slide-in-from-top-1 duration-200">
+                      Error: Title or description cannot contain cross symbols (X, x, ×, etc.)
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -1161,15 +1209,6 @@ export default function AdminDashboard() {
           ></div>
           
           <div className="relative w-full max-w-6xl h-full max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl bg-[#0a0d1f] border border-white/10">
-            <div className="absolute top-6 right-6 z-[110]">
-              <button 
-                onClick={() => setShowCalendar(false)}
-                className="p-2 rounded-full bg-black/40 hover:bg-white/10 text-gray-400 hover:text-white transition-all backdrop-blur-md"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
             <GoogleCalendar 
               events={events} 
               onEventClick={(event) => {

@@ -1,15 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Calendar, Mail, Lock, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [userType, setUserType] = useState('student');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      if (user.user_type === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/student/dashboard');
+      }
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -21,7 +33,7 @@ export default function LoginPage() {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      console.log('Attempting login for:', email);
+      console.log('Attempting login for:', email, 'as', userType);
       const response = await fetch('http://127.0.0.1:8000/api/users/login', {
         method: 'POST',
         signal: controller.signal,
@@ -36,9 +48,7 @@ export default function LoginPage() {
       });
 
       clearTimeout(timeoutId);
-      console.log('Login API Response:', response);
       const data = await response.json();
-      console.log('Login API Data:', data);
 
       if (!response.ok) {
         setError(data.detail || 'Login failed. Please check your credentials.');
@@ -47,17 +57,9 @@ export default function LoginPage() {
 
       if (data.success) {
         setSuccess('Login successful!');
-        // Store user info and token in localStorage
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('userId', data.user.id);
+        login(data.user, data.access_token);
         
-        // Redirect based on user type
-        if (data.user.user_type === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/student/dashboard');
-        }
+        // Redirect will be handled by useEffect
       }
     } catch (err) {
       setError('Connection error. Make sure the backend server is running on port 8000.');
