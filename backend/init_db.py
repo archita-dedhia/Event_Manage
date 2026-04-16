@@ -88,6 +88,7 @@ def add_sample_users(db_url):
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=create_engine(db_url))
     db = SessionLocal()
     
+    from . import auth_utils
     try:
         # Check if users already exist
 
@@ -100,13 +101,13 @@ def add_sample_users(db_url):
         users = [
             User(
                 email="admin@campus.edu",
-                password="password123",
+                password=auth_utils.get_password_hash("password123"),
                 full_name="Admin User",
                 user_type="admin"
             ),
             User(
                 email="student@campus.edu",
-                password="password123",
+                password=auth_utils.get_password_hash("password123"),
                 full_name="Student User",
                 moodle_id="12345678",
                 department="Computer Science",

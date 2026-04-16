@@ -190,9 +190,9 @@ export default function PastEventsPage() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-[#0a0d1f]/80 border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/student/dashboard" className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+          <Link to={user?.user_type === 'admin' ? "/admin/dashboard" : "/student/dashboard"} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
-            <span>Back to Home</span>
+            <span>Back to Dashboard</span>
           </Link>
           <div className="flex items-center gap-2">
             <span className="text-xl text-white tracking-tight">CampusEvents</span>

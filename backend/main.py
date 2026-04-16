@@ -562,7 +562,10 @@ def update_event(event_id: int, payload: schemas.EventUpdate, current_user: mode
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     if event.organizer_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own events")
+        # Check if the current user is an admin, they should be able to update any event if they are the "Global Admin"
+        # or if we want to be strict, keep it as is. But usually, admins can manage everything.
+        if current_user.user_type != 'admin':
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own events")
     
     # Check for conflicts on update
     def to_min(t_str):
