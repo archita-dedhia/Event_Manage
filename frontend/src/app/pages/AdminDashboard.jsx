@@ -81,7 +81,7 @@ export default function AdminDashboard() {
 
   const containsCross = (text) => {
     if (!text) return false;
-    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    const crossSymbols = ['×', '✕', '✖', '❌'];
     return crossSymbols.some(symbol => text.includes(symbol));
   };
 
@@ -234,7 +234,7 @@ export default function AdminDashboard() {
     if (isSubmitting) return;
 
     // Calendar Cross-Items Restriction
-    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    const crossSymbols = ['×', '✕', '✖', '❌'];
     const containsCross = (text) => crossSymbols.some(symbol => text.includes(symbol));
     
     if (containsCross(formData.title) || containsCross(formData.description)) {
@@ -320,7 +320,7 @@ export default function AdminDashboard() {
     if (isSubmitting) return;
 
     // Calendar Cross-Items Restriction
-    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    const crossSymbols = ['×', '✕', '✖', '❌'];
     const containsCross = (text) => crossSymbols.some(symbol => text.includes(symbol));
     
     if (containsCross(formData.title) || containsCross(formData.description)) {
@@ -620,13 +620,6 @@ export default function AdminDashboard() {
             <div>
               <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
               <p className="text-gray-400">Manage and create campus events</p>
-            </div>
-            {/* Logo moved to the right */}
-            <div className="flex items-center gap-2 border-l border-white/10 pl-6">
-              <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
             </div>
           </div>
 

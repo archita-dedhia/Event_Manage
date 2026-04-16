@@ -88,7 +88,7 @@ export default function StudentDashboard() {
 
   const containsCross = (text) => {
     if (!text) return false;
-    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    const crossSymbols = ['×', '✕', '✖', '❌'];
     return crossSymbols.some(symbol => text.includes(symbol));
   };
 
@@ -255,6 +255,13 @@ export default function StudentDashboard() {
 
   const myBookings = sortedEvents.filter(event => bookedEvents.includes(event.id.toString()));
 
+  const upcomingEventsCount = events.filter(event => {
+    const eventDate = new Date(event.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return eventDate >= today;
+  }).length;
+
   // Calculate dynamic stats
   const totalAttendees = events.reduce((sum, event) => sum + (event.attendees || 0), 0);
   
@@ -355,13 +362,6 @@ export default function StudentDashboard() {
               <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
               <p className="text-gray-400">Discover and book amazing campus events</p>
             </div>
-            {/* Logo moved to the right */}
-            <div className="flex items-center gap-2 border-l border-white/10 pl-6">
-              <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-white" />
-              </div>
-            </div>
           </div>
 
           {/* Search Bar */}
@@ -418,10 +418,10 @@ export default function StudentDashboard() {
             <div className="p-6 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20">
               <div className="flex items-center justify-between mb-3">
                 <Calendar className="w-8 h-8 text-purple-400" />
-                <div className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300">All</div>
+                <div className="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-300">Soon</div>
               </div>
-              <div className="text-3xl text-white mb-1">{events.length}</div>
-              <div className="text-sm text-gray-400">Available Events</div>
+              <div className="text-3xl text-white mb-1">{upcomingEventsCount}</div>
+              <div className="text-sm text-gray-400">Upcoming Events</div>
             </div>
 
             <div className="p-6 rounded-2xl bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20">
@@ -453,7 +453,9 @@ export default function StudentDashboard() {
               <div className="space-y-12">
                 {Object.entries(groupedEvents).map(([category, eventsInCategory]) => (
                   <div key={category}>
-                    <h2 className="text-2xl mb-6 text-white">{category}</h2>
+                    <h2 className="text-2xl mb-6 text-white">
+                      {category === 'All Events' ? `${selectedStatus} Events` : category}
+                    </h2>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {eventsInCategory.map((event) => {
                         const isBooked = bookedEvents.includes(event.id.toString());

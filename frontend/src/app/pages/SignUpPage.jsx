@@ -70,12 +70,7 @@ export default function SignUpPage() {
         return;
       }
 
-      setSuccess('Account created successfully! Logging you in...');
-      
-      // Store user info and token in localStorage (auto-login)
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('userId', data.user.id);
+      setSuccess('Account created successfully! Redirecting to login...');
       
       // Clear form
       setFullName('');
@@ -87,8 +82,8 @@ export default function SignUpPage() {
 
       // Redirect after 1 second
       setTimeout(() => {
-        navigate('/student/dashboard');
-      }, 1000);
+        navigate('/login');
+      }, 1500);
     } catch (err) {
       setError('Connection error. Make sure the backend server is running on port 8000.');
       console.error('Sign up error:', err);

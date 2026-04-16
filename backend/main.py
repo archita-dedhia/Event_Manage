@@ -257,8 +257,9 @@ def create_event(payload: schemas.EventCreate, current_user: models.User = Depen
         raise HTTPException(status_code=403, detail="Only admins can create events")
     
     # 2. Calendar Cross-Items Restriction
-    # Prevent addition of items containing visual "cross" symbols (×, X, or similar)
-    cross_symbols = ['×', 'X', 'x', '✕', '✖', '❌']
+    # Prevent addition of items containing visual "cross" symbols (×, ✕, ✖, ❌)
+    # We exclude 'x' and 'X' as they are common letters in many words
+    cross_symbols = ['×', '✕', '✖', '❌']
     def contains_cross(text):
         if not text: return False
         return any(symbol in text for symbol in cross_symbols)

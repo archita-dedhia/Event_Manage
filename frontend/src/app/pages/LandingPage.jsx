@@ -16,7 +16,7 @@ export default function LandingPage() {
 
   const containsCross = (text) => {
     if (!text) return false;
-    const crossSymbols = ['×', 'X', 'x', '✕', '✖', '❌'];
+    const crossSymbols = ['×', '✕', '✖', '❌'];
     return crossSymbols.some(symbol => text.includes(symbol));
   };
   const [searchTerm, setSearchTerm] = useState('');
