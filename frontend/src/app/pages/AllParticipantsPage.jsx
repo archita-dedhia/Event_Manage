@@ -137,16 +137,20 @@ export default function AllParticipantsPage() {
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
           <div className="flex justify-between items-start mb-8">
-            <div>
-              <Link 
-                to="/admin/dashboard" 
-                className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to dashboard
-              </Link>
-              <h1 className="text-3xl text-white font-bold">All Event Participants</h1>
-              <p className="text-gray-400">View and search through all students registered for your events</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-4 mb-4">
+                <Link 
+                  to="/admin/dashboard" 
+                  className="p-2 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all group"
+                  title="Back to Dashboard"
+                >
+                  <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                </Link>
+                <div>
+                  <h1 className="text-3xl text-white font-bold">All Event Participants</h1>
+                  <p className="text-gray-400">View and search through all students registered for your events</p>
+                </div>
+              </div>
             </div>
             
             {/* Logo moved to the right */}

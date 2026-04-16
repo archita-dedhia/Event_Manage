@@ -163,7 +163,7 @@ export default function PastEventsPage() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          images: updatedImages,
+          images: updatedImages.map(img => typeof img === 'string' ? img : img.url),
           pdf_url: updatedReportUrl
         })
       });
@@ -608,7 +608,7 @@ export default function PastEventsPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting || (newImages.length === 0 && !newReport)}
+                    disabled={isSubmitting}
                     className="flex-1 px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold hover:shadow-[0_0_30px_-5px_rgba(147,51,234,0.5)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     {isSubmitting ? (

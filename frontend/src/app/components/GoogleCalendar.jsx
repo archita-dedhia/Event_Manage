@@ -13,10 +13,14 @@ import {
 
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-const GoogleCalendar = ({ events = [], onEventClick }) => {
+const GoogleCalendar = ({ events = [], view: externalView, onViewChange, onEventClick }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState('Month'); // Month, Week, Day
+  const [internalView, setInternalView] = useState('Month'); // Fallback internal state
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Use external view if provided, otherwise use internal
+  const view = externalView || internalView;
+  const setView = onViewChange || setInternalView;
 
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();

@@ -78,6 +78,9 @@ export default function ProfilePage() {
       clearTimeout(timeoutId);
       const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
       setError(msg);
+      // Close modal on error too
+      setShowVerifyModal(false);
+      setCurrentPassword('');
     } finally {
       setLoading(false);
     }

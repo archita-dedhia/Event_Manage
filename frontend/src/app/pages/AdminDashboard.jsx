@@ -51,6 +51,7 @@ export default function AdminDashboard() {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
 
   const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarView, setCalendarView] = useState('Month'); // Add state to keep calendar view consistent
   const [selectedCalendarEvent, setSelectedCalendarEvent] = useState(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -762,7 +763,7 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <label className="block text-sm mb-2 text-gray-300">Location</label>
                     <select
-                      value={['301 Room', '302 Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab'].includes(formData.location) ? formData.location : (formData.location ? 'Other' : '')}
+                      value={['301 Room', '302 Room', '310 Room', '311 Room', '312 Room', '313 Room', '314 Room', '315 Room', '316 Room', '307 Room', '308 Room', '304a Room', '304b Room', '304c Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab', '008 Room', '214 Room', '406 Room', '414 Room', '418 Room', '218 Room'].includes(formData.location) ? formData.location : (formData.location ? 'Other' : '')}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === 'Other') {
@@ -776,7 +777,7 @@ export default function AdminDashboard() {
                     >
                       <option value="" disabled>Select Room/Lab</option>
                       <optgroup label="Rooms" className="bg-[#0a0d1f]">
-                        {['301 Room', '302 Room', '401 Room', 'Auditorium', 'Seminar Hall'].map(loc => (
+                        {['301 Room', '302 Room', '310 Room', '311 Room', '312 Room', '313 Room', '314 Room', '315 Room', '316 Room', '307 Room', '308 Room', '304a Room', '304b Room', '304c Room', '401 Room', 'Auditorium', 'Seminar Hall', '008 Room', '214 Room', '406 Room', '414 Room', '418 Room', '218 Room'].map(loc => (
                           <option key={loc} value={loc} disabled={occupiedLocations.includes(loc)}>
                             {loc} {occupiedLocations.includes(loc) ? '(Occupied)' : ''}
                           </option>
@@ -792,7 +793,7 @@ export default function AdminDashboard() {
                       <option value="Other">Other (Custom)</option>
                     </select>
                     
-                    {(!['301 Room', '302 Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab'].includes(formData.location) && formData.location !== '') && (
+                    {(!['301 Room', '302 Room', '310 Room', '311 Room', '312 Room', '313 Room', '314 Room', '315 Room', '316 Room', '307 Room', '308 Room', '304a Room', '304b Room', '304c Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab', '008 Room', '214 Room', '406 Room', '414 Room', '418 Room', '218 Room'].includes(formData.location) && formData.location !== '') && (
                       <input
                         type="text"
                         value={formData.location === 'Other' ? customLocation : formData.location}
@@ -1201,12 +1202,22 @@ export default function AdminDashboard() {
             onClick={() => setShowCalendar(false)}
           ></div>
           
-          <div className="relative w-full max-w-6xl h-full max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl bg-[#0a0d1f] border border-white/10">
+          <div className="relative w-full max-w-6xl h-full max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl bg-[#0a0d1f] border border-white/10 flex flex-col">
+            <div className="absolute top-4 right-4 z-[110]">
+              <button 
+                onClick={() => setShowCalendar(false)}
+                className="p-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
             <GoogleCalendar 
               events={events} 
+              view={calendarView}
+              onViewChange={setCalendarView}
               onEventClick={(event) => {
                 setSelectedEvent(event);
-                setShowCalendar(false);
+                // Calendar stays open
               }}
             />
           </div>

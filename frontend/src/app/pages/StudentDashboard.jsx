@@ -40,6 +40,7 @@ export default function StudentDashboard() {
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarView, setCalendarView] = useState('Month'); // Add state to keep calendar view consistent
   const [backendCategories, setBackendCategories] = useState(['All']);
 
   const scrollToTop = () => {
@@ -128,6 +129,19 @@ export default function StudentDashboard() {
       const categoriesData = await categoriesRes.json();
       
       setEvents(eventsData);
+
+      // Alert if no upcoming events
+      const upcomingCount = eventsData.filter(event => {
+        const eventDate = new Date(event.date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return eventDate >= today && !containsCross(event.title) && !containsCross(event.description);
+      }).length;
+
+      if (upcomingCount === 0) {
+        alert('No upcoming events currently available.');
+      }
+
       setBookedEvents(bookingsData.map(b => b.event_id.toString()));
       setBackendCategories(['All', ...categoriesData.map(c => c.name)]);
     } catch (err) {
@@ -898,12 +912,22 @@ export default function StudentDashboard() {
             onClick={() => setShowCalendar(false)}
           ></div>
           
-          <div className="relative w-full max-w-6xl h-full max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl bg-[#0a0d1f] border border-white/10">
+          <div className="relative w-full max-w-6xl h-full max-h-[90vh] rounded-3xl overflow-hidden shadow-2xl bg-[#0a0d1f] border border-white/10 flex flex-col">
+            <div className="absolute top-4 right-4 z-[110]">
+              <button 
+                onClick={() => setShowCalendar(false)}
+                className="p-2 rounded-full bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
             <GoogleCalendar 
               events={events} 
+              view={calendarView}
+              onViewChange={setCalendarView}
               onEventClick={(event) => {
                 setSelectedEvent(event);
-                setShowCalendar(false);
+                // Removed setShowCalendar(false) so the calendar stays open
               }}
             />
           </div>
