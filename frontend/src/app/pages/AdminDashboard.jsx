@@ -1002,7 +1002,7 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4 text-sm text-gray-400 font-medium">Date & Time</th>
                       <th className="px-6 py-4 text-sm text-gray-400 font-medium">Location</th>
                       <th className="px-6 py-4 text-sm text-gray-400 font-medium">Attendance</th>
-                      <th className="px-6 py-4 text-sm text-gray-400 font-medium">Actions</th>
+                      <th className="px-6 py-4 text-sm text-gray-400 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1066,7 +1066,10 @@ export default function AdminDashboard() {
                           <div className="flex items-center gap-2">
                             <div className="flex-1">
                               <button 
-                                onClick={() => fetchParticipants(event.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  fetchParticipants(event.id);
+                                }}
                                 className="text-sm text-white mb-1 hover:text-purple-400 transition-colors"
                               >
                                 {event.attendees}/{event.capacity}
@@ -1080,42 +1083,39 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
-                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              {event.pdf_url ? (
-                                <button 
-                                  onClick={() => handleDownloadReport(event)}
-                                  className="p-2 rounded-lg text-gray-400 hover:text-green-400 hover:bg-green-500/10 transition-colors"
-                                  title="Download PDF Report"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </button>
-                              ) : (
-                                <span className="px-2 py-1 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 uppercase tracking-tighter">
-                                  Pending
-                                </span>
-                              )}
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                            {event.pdf_url && (
                               <button 
-                                onClick={() => {
-                                  setSelectedEvent(event);
-                                  setCurrentImageIndex(0);
-                                  setIsAutoPlaying(true);
-                                }}
-                                className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 transition-colors"
-                                title="View Details"
+                                onClick={() => handleDownloadReport(event)}
+                                className="p-2 rounded-lg text-gray-400 hover:text-green-400 hover:bg-green-500/10 transition-all"
+                                title="Download PDF Report"
                               >
-                                <Activity className="w-4 h-4" />
+                                <Download className="w-4 h-4" />
                               </button>
+                            )}
+                            <button 
+                              onClick={() => {
+                                setSelectedEvent(event);
+                                setCurrentImageIndex(0);
+                                setIsAutoPlaying(true);
+                              }}
+                              className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
+                              title="View Details"
+                            >
+                              <Activity className="w-4 h-4" />
+                            </button>
                             <button 
                               onClick={() => handleEditClick(event)}
-                              className="p-2 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                              className="p-2 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
                               title="Edit Event"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button 
                               onClick={() => handleDeleteEvent(event.id)}
-                              className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                              className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                              title="Delete Event"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -1241,13 +1241,32 @@ export default function AdminDashboard() {
             <div className="sticky top-0 z-10 flex items-center justify-between p-6 border-b border-white/10 bg-[#0a0d1f]/50 backdrop-blur-md">
               <div className="flex items-center gap-4">
                 <h2 className="text-2xl text-white font-semibold">Event Details</h2>
-                <button 
-                  onClick={() => handleDownloadReport(selectedEvent)}
-                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium hover:bg-green-500/20 transition-all"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Download Report
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleDownloadReport(selectedEvent)}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium hover:bg-green-500/20 transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download Report
+                  </button>
+                  <button 
+                    onClick={() => handleEditClick(selectedEvent)}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/20 transition-all"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => {
+                      handleDeleteEvent(selectedEvent.id);
+                      setSelectedEvent(null);
+                    }}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete
+                  </button>
+                </div>
               </div>
               <button 
                 onClick={() => setSelectedEvent(null)}
