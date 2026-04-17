@@ -654,7 +654,7 @@ export default function StudentDashboard() {
 
       {/* Event Details Modal */}
       {selectedEvent && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6">
           <div 
             className="absolute inset-0 bg-[#0a0d1f]/90 backdrop-blur-sm"
             onClick={() => setSelectedEvent(null)}

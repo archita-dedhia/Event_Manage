@@ -763,11 +763,13 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <label className="block text-sm mb-2 text-gray-300">Location</label>
                     <select
-                      value={['301 Room', '302 Room', '310 Room', '311 Room', '312 Room', '313 Room', '314 Room', '315 Room', '316 Room', '307 Room', '308 Room', '304a Room', '304b Room', '304c Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab', '008 Room', '214 Room', '406 Room', '414 Room', '418 Room', '218 Room'].includes(formData.location) ? formData.location : (formData.location ? 'Other' : '')}
+                      value={['301 Room', '302 Room', '310 Room', '311 Room', '312 Room', '313 Room', '314 Room', '315 Room', '316 Room', '307 Room', '308 Room', '304a Room', '304b Room', '304c Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab', '008 Room', '214 Room', '406 Room', '414 Room', '418 Room', '218 Room'].includes(formData.location) ? formData.location : (formData.location === '' ? '' : 'Other')}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val === 'Other') {
-                          setFormData({ ...formData, location: customLocation });
+                          // When "Other" is selected, we keep the existing customLocation if any, 
+                          // or set a placeholder to trigger the input box
+                          setFormData({ ...formData, location: customLocation || ' ' });
                         } else {
                           setFormData({ ...formData, location: val });
                         }
@@ -794,18 +796,21 @@ export default function AdminDashboard() {
                     </select>
                     
                     {(!['301 Room', '302 Room', '310 Room', '311 Room', '312 Room', '313 Room', '314 Room', '315 Room', '316 Room', '307 Room', '308 Room', '304a Room', '304b Room', '304c Room', '401 Room', 'Auditorium', 'Seminar Hall', '301 Lab', '302 Lab', 'Project Lab', 'Network Lab', '008 Room', '214 Room', '406 Room', '414 Room', '418 Room', '218 Room'].includes(formData.location) && formData.location !== '') && (
-                      <input
-                        type="text"
-                        value={formData.location === 'Other' ? customLocation : formData.location}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setCustomLocation(val);
-                          setFormData({ ...formData, location: val });
-                        }}
-                        placeholder="Enter custom location"
-                        className="w-full mt-2 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
-                        required
-                      />
+                      <div className="animate-in slide-in-from-top-2 fade-in duration-300">
+                        <label className="block text-xs mt-4 mb-2 text-purple-400 uppercase tracking-wider font-semibold">Custom Room/Location Name</label>
+                        <input
+                          type="text"
+                          value={customLocation}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCustomLocation(val);
+                            setFormData({ ...formData, location: val });
+                          }}
+                          placeholder="e.g. Workshop Room 101"
+                          className="w-full px-4 py-3 rounded-xl bg-white/10 border border-purple-500/30 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                          required
+                        />
+                      </div>
                     )}
                   </div>
 
@@ -1225,7 +1230,7 @@ export default function AdminDashboard() {
       )}
       {/* Event Details Modal */}
       {selectedEvent && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6">
           <div 
             className="absolute inset-0 bg-[#0a0d1f]/90 backdrop-blur-sm"
             onClick={() => setSelectedEvent(null)}

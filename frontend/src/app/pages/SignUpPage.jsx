@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Calendar, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [moodleId, setMoodleId] = useState('');
@@ -14,6 +16,18 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // If user is already logged in, redirect them to their dashboard
+  // or provide a way to log out. For now, let's redirect.
+  useEffect(() => {
+    if (user) {
+      if (user.user_type === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/student/dashboard');
+      }
+    }
+  }, [user, navigate]);
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -37,6 +51,9 @@ export default function SignUpPage() {
     }
 
     setLoading(true);
+    
+    // Clear any existing session before creating a new one
+    logout();
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
