@@ -375,7 +375,9 @@ export default function PastEventsPage() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSlideshowItems(selectedEvent.images || [{ url: selectedEvent.image }]);
+                        setSlideshowItems(selectedEvent.images?.length > 0 
+                          ? selectedEvent.images 
+                          : [{ url: selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image] }]);
                       }}
                       className="absolute top-4 right-4 p-2 rounded-xl bg-black/50 backdrop-blur-md border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/70"
                     >

@@ -441,26 +441,25 @@ export default function StudentDashboard() {
                                 </div>
                               )}
 
-                              {/* Slideshow Trigger Overlay */}
-                              {(event.images?.length > 0 || event.pdf_url) && (
-                                <button 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
-                                    if (event.pdf_url) items.push({ url: event.pdf_url, type: 'pdf' });
-                                    const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
-                                    if (mainImg && !items.some(item => item.url === mainImg)) {
-                                      items.unshift({ url: mainImg, type: 'image' });
-                                    }
-                                    setSlideshowItems(items);
-                                  }}
-                                  className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
-                                >
-                                  <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium">
-                                    View Gallery / Report
-                                  </div>
-                                </button>
-                              )}
+                    {/* Slideshow Trigger Overlay */}
+                    {(event.images?.length > 0 || event.pdf_url) && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
+                          const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
+                          if (mainImg && !items.some(item => item.url === mainImg)) {
+                            items.unshift({ url: mainImg, type: 'image' });
+                          }
+                          setSlideshowItems(items);
+                        }}
+                        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
+                      >
+                        <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium">
+                          View Gallery
+                        </div>
+                      </button>
+                    )}
                             </div>
                             <div className="p-5">
                               <h3 className="text-lg mb-2 text-white line-clamp-1">{event.title}</h3>
@@ -644,7 +643,7 @@ export default function StudentDashboard() {
                       onClick={() => {
                         const mainImg = selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image];
                         const items = (selectedEvent.images || []).map(img => ({ url: img.url, type: 'image' }));
-                        // Removed PDF from slideshow items
+                        
                         if (mainImg && !items.some(item => item.url === mainImg)) {
                           items.unshift({ url: mainImg, type: 'image' });
                         }

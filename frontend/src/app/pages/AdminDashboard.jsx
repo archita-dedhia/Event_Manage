@@ -969,7 +969,6 @@ export default function AdminDashboard() {
                                 onClick={() => {
                                   const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
                                   const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
-                                  if (event.pdf_url) items.push({ url: event.pdf_url, type: 'pdf' });
                                   if (mainImg && !items.some(item => item.url === mainImg)) {
                                     items.unshift({ url: mainImg, type: 'image' });
                                   }
@@ -1263,7 +1262,6 @@ export default function AdminDashboard() {
                           ? selectedEvent.images.map(img => ({ url: img.url, type: 'image' }))
                           : [{ url: (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image]), type: 'image' }];
                         
-                        if (selectedEvent.pdf_url) items.push({ url: selectedEvent.pdf_url, type: 'pdf' });
                         setSlideshowItems(items);
                       }}
                       className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
