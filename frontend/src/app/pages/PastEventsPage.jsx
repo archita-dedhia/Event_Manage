@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Calendar, ChevronRight, ArrowLeft, Download, Eye, MapPin, Users, X, Activity, FileText, Globe, Sparkles, ChevronLeft, Search, Edit2, Upload, Image as ImageIcon } from 'lucide-react';
+import { Calendar, ChevronRight, ArrowLeft, Download, Eye, MapPin, Users, X, Activity, FileText, Globe, Sparkles, ChevronLeft, Search, Edit2, Upload, Image as ImageIcon, Menu } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 import { eventImages } from '../data/eventImages.js';
 import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
@@ -192,11 +192,19 @@ export default function PastEventsPage() {
 
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
-          <div className="mb-12">
-            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-              Past Events
-            </h1>
-            <p className="text-gray-400">Memories from our previous campus gatherings</p>
+          <div className="mb-12 flex items-center gap-4">
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
+              className="lg:hidden p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+                Past Events
+              </h1>
+              <p className="text-gray-400">Memories from our previous campus gatherings</p>
+            </div>
           </div>
 
           {loading ? (

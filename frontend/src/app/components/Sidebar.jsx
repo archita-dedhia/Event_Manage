@@ -9,7 +9,9 @@ import {
   User, 
   LogOut,
   LayoutDashboard,
-  Users
+  Users,
+  Menu,
+  X
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -18,6 +20,18 @@ export default function Sidebar() {
   const location = useLocation();
   const [eventsCount, setEventsCount] = useState(0);
   const [bookingsCount, setBookingsCount] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleToggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev);
+    window.addEventListener('toggle-mobile-menu', handleToggleMobileMenu);
+    return () => window.removeEventListener('toggle-mobile-menu', handleToggleMobileMenu);
+  }, []);
+
+  // Close menu when route changes
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location]);
 
   useEffect(() => {
     const fetchCounts = async () => {
@@ -74,14 +88,32 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-72 border-r border-white/10 bg-gradient-to-b from-white/[0.02] to-transparent backdrop-blur-lg hidden lg:flex flex-col flex-shrink-0">
-      <div className="p-6 flex-1 overflow-y-auto">
-        <Link to="/" className="flex items-center gap-2 mb-12">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-            <Calendar className="w-6 h-6 text-white" />
+    <>
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden animate-in fade-in duration-300"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar Container */}
+      <aside className={`fixed lg:static inset-y-0 left-0 w-72 border-r border-white/10 bg-gradient-to-b from-[#0f1129] to-[#0a0d1f] lg:bg-gradient-to-b lg:from-white/[0.02] lg:to-transparent backdrop-blur-xl lg:backdrop-blur-lg flex flex-col flex-shrink-0 z-[101] lg:z-auto transition-transform duration-300 lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:flex`}>
+        <div className="p-6 flex-1 overflow-y-auto">
+          <div className="flex items-center justify-between mb-12">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xl text-white tracking-tight">CampusEvents</span>
+            </Link>
+            <button 
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="lg:hidden p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white"
+            >
+              <X className="w-6 h-6" />
+            </button>
           </div>
-          <span className="text-xl text-white tracking-tight">CampusEvents</span>
-        </Link>
 
         <nav className="space-y-2">
           {menuItems.map((item) => {
@@ -171,5 +203,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

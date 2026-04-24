@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext.jsx';
-import { User, Mail, Lock, ArrowLeft, Save, ShieldCheck, Calendar, ChevronRight, X } from 'lucide-react';
+import { User, Mail, Lock, ArrowLeft, Save, ShieldCheck, Calendar, ChevronRight, X, Menu } from 'lucide-react';
 import Sidebar from '../components/Sidebar.jsx';
 
 export default function ProfilePage() {
@@ -97,6 +97,12 @@ export default function ProfilePage() {
         <div className="w-full max-w-2xl mx-auto">
           <div className="rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 p-8 sm:p-12">
           <div className="flex items-center gap-6 mb-10">
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
+              className="lg:hidden p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
               <User className="w-10 h-10 text-white" />
             </div>

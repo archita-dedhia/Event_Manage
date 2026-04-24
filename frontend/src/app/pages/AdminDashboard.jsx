@@ -23,6 +23,7 @@ import {
   ChevronRight,
   ChevronLeft,
   X,
+  Menu,
   Globe,
   Download
 } from 'lucide-react';
@@ -552,10 +553,18 @@ export default function AdminDashboard() {
       <main className="flex-1 overflow-auto">
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
           {/* Header */}
-          <div className="flex justify-between items-start mb-8">
-            <div>
-              <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
-              <p className="text-gray-400">Manage and create campus events</p>
+          <div className="flex justify-between items-start mb-8 gap-4">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
+                className="lg:hidden p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <div>
+                <h1 className="text-2xl md:text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
+                <p className="text-sm text-gray-400">Manage and create campus events</p>
+              </div>
             </div>
             <button 
               onClick={() => {
@@ -565,7 +574,7 @@ export default function AdminDashboard() {
               className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/30 transition-all active:scale-95"
             >
               <Plus className="w-5 h-5" />
-              <span>Create Event</span>
+              <span className="hidden sm:inline">Create Event</span>
             </button>
           </div>
 
