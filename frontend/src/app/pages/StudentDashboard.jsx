@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext.jsx';
 import { 
   Calendar, 
@@ -23,10 +23,12 @@ import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
 import GoogleCalendar from '../components/GoogleCalendar.jsx';
+import Sidebar from '../components/Sidebar.jsx';
 
 export default function StudentDashboard() {
   const { user, loading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('Upcoming'); // Upcoming, Past, All
@@ -74,6 +76,19 @@ export default function StudentDashboard() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [authLoading, user]);
+
+  useEffect(() => {
+    const handleToggleCalendar = () => setShowCalendar(prev => !prev);
+    window.addEventListener('toggle-calendar', handleToggleCalendar);
+    
+    if (location.state?.openCalendar) {
+      setShowCalendar(true);
+      // Clear state so it doesn't reopen on refresh
+      window.history.replaceState({}, document.title);
+    }
+    
+    return () => window.removeEventListener('toggle-calendar', handleToggleCalendar);
+  }, [location]);
 
   if (authLoading) {
     return (
@@ -143,6 +158,11 @@ export default function StudentDashboard() {
       }
 
       setBookedEvents(bookingsData.map(b => b.event_id.toString()));
+      
+      if (bookingsData.length === 0) {
+        alert('You have no event bookings yet.');
+      }
+
       setBackendCategories(['All', ...categoriesData.map(c => c.name)]);
     } catch (err) {
       clearTimeout(timeoutId);
@@ -292,80 +312,7 @@ export default function StudentDashboard() {
 
   return (
     <div className="min-h-screen bg-[#0a0d1f] flex">
-      {/* Sidebar */}
-      <aside className="w-72 border-r border-white/10 bg-gradient-to-b from-white/[0.02] to-transparent backdrop-blur-lg hidden lg:block">
-        <div className="p-6">
-          <Link to="/" className="flex items-center gap-2 mb-12">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl text-white tracking-tight">CampusEvents</span>
-          </Link>
-
-          <nav className="space-y-2">
-            <a 
-              href="#" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-600/20 border border-purple-500/30 text-white"
-            >
-              <Home className="w-5 h-5" />
-              <span>Dashboard</span>
-            </a>
-            <a 
-              href="#events" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Calendar className="w-5 h-5" />
-              <span>Events</span>
-            </a>
-            <a 
-              href="#bookings" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Bookmark className="w-5 h-5" />
-              <span>My Bookings</span>
-              {myBookings.length > 0 && (
-                <span className="ml-auto px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs">
-                  {myBookings.length}
-                </span>
-              )}
-            </a>
-            <Link 
-              to="/past-events" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Clock className="w-5 h-5" />
-              <span>Past Events</span>
-            </Link>
-            <Link 
-              to="/profile" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <User className="w-5 h-5" />
-              <span>Profile</span>
-            </Link>
-            <button 
-              onClick={() => setShowCalendar(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Calendar className="w-5 h-5" />
-              <span>Calendar View</span>
-            </button>
-          </nav>
-
-          <div className="absolute bottom-6 left-6 right-6">
-            <button 
-              onClick={() => {
-                logout();
-                navigate('/login');
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
@@ -528,21 +475,25 @@ export default function StudentDashboard() {
                                   <MapPin className="w-4 h-4 text-blue-400" />
                                   <span>{event.location}</span>
                                 </div>
-                                <div className="flex items-center gap-2 text-gray-400 text-xs">
-                                  <Users className="w-4 h-4 text-pink-400" />
-                                  <span>{event.attendees}/{event.capacity} spots filled</span>
-                                </div>
+                                {!event.is_rsvp_based && (
+                                  <div className="flex items-center gap-2 text-gray-400 text-xs">
+                                    <Users className="w-4 h-4 text-pink-400" />
+                                    <span>{event.attendees}/{event.capacity} spots filled</span>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Progress Bar */}
-                              <div className="mb-4">
-                                <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                  <div 
-                                    className="h-full bg-gradient-to-r from-purple-500 to-blue-600 rounded-full"
-                                    style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
-                                  />
+                              {!event.is_rsvp_based && (
+                                <div className="mb-4">
+                                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                    <div 
+                                      className="h-full bg-gradient-to-r from-purple-500 to-blue-600 rounded-full"
+                                      style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
+                                    />
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                               
                               <div className="flex gap-2">
                                 <button
@@ -832,13 +783,15 @@ export default function StudentDashboard() {
                         <div className="text-white">{selectedEvent.location}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                      <Users className="w-6 h-6 text-pink-400" />
-                      <div>
-                        <div className="text-sm text-gray-400 uppercase tracking-wider">Availability</div>
-                        <div className="text-white">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</div>
+                    {!selectedEvent.is_rsvp_based && (
+                      <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                        <Users className="w-6 h-6 text-pink-400" />
+                        <div>
+                          <div className="text-sm text-gray-400 uppercase tracking-wider">Availability</div>
+                          <div className="text-white">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="mb-8">

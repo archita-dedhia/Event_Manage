@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
+import Sidebar from '../components/Sidebar.jsx';
 import { 
   Users, 
   Search, 
@@ -58,6 +59,9 @@ export default function AllParticipantsPage() {
       
       const data = await response.json();
       setParticipants(data);
+      if (data.length === 0) {
+        alert('There are no event participants currently.');
+      }
     } catch (err) {
       clearTimeout(timeoutId);
       console.error('Error fetching participants:', err);
@@ -83,55 +87,7 @@ export default function AllParticipantsPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0d1f] flex">
-      {/* Sidebar (Copy of Admin Sidebar) */}
-      <aside className="w-72 border-r border-white/10 bg-gradient-to-b from-white/[0.02] to-transparent backdrop-blur-lg hidden lg:block">
-        <div className="p-6">
-          <Link to="/" className="flex items-center gap-2 mb-12">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl text-white tracking-tight">CampusEvents</span>
-          </Link>
-
-          <nav className="space-y-2">
-            <Link 
-              to="/admin/dashboard" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <LayoutDashboard className="w-5 h-5" />
-              <span>Dashboard</span>
-            </Link>
-            <Link 
-              to="/admin/participants" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-600/20 border border-purple-500/30 text-white"
-            >
-              <Users className="w-5 h-5" />
-              <span>All Participants</span>
-            </Link>
-            <Link 
-              to="/profile" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <UserIcon className="w-5 h-5" />
-              <span>Profile</span>
-            </Link>
-          </nav>
-
-          <div className="absolute bottom-6 left-6 right-6">
-            <Link 
-              to="/login"
-              onClick={() => {
-                localStorage.removeItem('user');
-                localStorage.removeItem('userId');
-              }}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </Link>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">

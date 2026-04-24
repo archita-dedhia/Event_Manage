@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../context/AuthContext.jsx';
 import { 
   Calendar, 
@@ -30,10 +30,12 @@ import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
 import GoogleCalendar from '../components/GoogleCalendar.jsx';
+import Sidebar from '../components/Sidebar.jsx';
 
 export default function AdminDashboard() {
   const { user, loading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [events, setEvents] = useState([]);
   const [categories, setCategories] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -80,6 +82,8 @@ export default function AdminDashboard() {
     average_attendance: 0
   });
 
+  const [activeTab, setActiveTab] = useState('upcoming');
+
   const containsCross = (text) => {
     if (!text) return false;
     const crossSymbols = ['×', '✕', '✖', '❌'];
@@ -117,6 +121,19 @@ export default function AdminDashboard() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [authLoading, user]);
+
+  useEffect(() => {
+    const handleToggleCalendar = () => setShowCalendar(prev => !prev);
+    window.addEventListener('toggle-calendar', handleToggleCalendar);
+    
+    if (location.state?.openCalendar) {
+      setShowCalendar(true);
+      // Clear state so it doesn't reopen on refresh
+      window.history.replaceState({}, document.title);
+    }
+    
+    return () => window.removeEventListener('toggle-calendar', handleToggleCalendar);
+  }, [location]);
 
   if (authLoading) {
     return (
@@ -494,6 +511,10 @@ export default function AdminDashboard() {
         }
       });
       const data = await response.json();
+      if (data.length === 0) {
+        alert('There are no bookings for this event yet.');
+        return;
+      }
       setSelectedEventParticipants(data);
       setShowParticipantsModal(true);
     } catch (err) {
@@ -523,95 +544,9 @@ export default function AdminDashboard() {
   const pastEvents = events.filter(event => new Date(event.date) < new Date().setHours(0,0,0,0))
     .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time));
 
-  const [activeTab, setActiveTab] = useState('upcoming');
-
   return (
     <div className="min-h-screen bg-[#0a0d1f] flex">
-      {/* Sidebar */}
-      <aside className="w-72 border-r border-white/10 bg-gradient-to-b from-white/[0.02] to-transparent backdrop-blur-lg hidden lg:block">
-        <div className="p-6">
-          <Link to="/" className="flex items-center gap-2 mb-12">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl text-white tracking-tight">CampusEvents</span>
-          </Link>
-
-          <div className="mb-6">
-            <button
-              onClick={() => {
-                resetForm();
-                setShowCreateForm(!showCreateForm);
-              }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white hover:shadow-lg hover:shadow-purple-500/50 transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Create Event</span>
-            </button>
-          </div>
-
-          <nav className="space-y-2">
-            <Link 
-              to="/admin/dashboard" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-600/20 border border-purple-500/30 text-white"
-            >
-              <LayoutDashboard className="w-5 h-5" />
-              <span>Dashboard</span>
-            </Link>
-            <Link 
-              to="/admin/participants" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Users className="w-5 h-5" />
-              <span>All Participants</span>
-            </Link>
-            <a 
-              href="#events" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Calendar className="w-5 h-5" />
-              <span>Events</span>
-              <span className="ml-auto px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs">
-                {events.length}
-              </span>
-            </a>
-            <Link 
-              to="/past-events" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Activity className="w-5 h-5" />
-              <span>Past Events</span>
-            </Link>
-            <Link 
-              to="/profile" 
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <User className="w-5 h-5" />
-              <span>Profile</span>
-            </Link>
-            <button 
-              onClick={() => setShowCalendar(true)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <Calendar className="w-5 h-5" />
-              <span>Calendar View</span>
-            </button>
-          </nav>
-
-          <div className="absolute bottom-6 left-6 right-6">
-            <button 
-              onClick={() => {
-                logout();
-                navigate('/login');
-              }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-            >
-              <LogOut className="w-5 h-5" />
-              <span>Logout</span>
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar />
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
@@ -622,6 +557,16 @@ export default function AdminDashboard() {
               <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
               <p className="text-gray-400">Manage and create campus events</p>
             </div>
+            <button 
+              onClick={() => {
+                resetForm();
+                setShowCreateForm(true);
+              }}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/30 transition-all active:scale-95"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Create Event</span>
+            </button>
           </div>
 
           {/* Stats Cards */}
@@ -1006,123 +951,142 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => (
-                      <tr 
-                            key={event.id} 
-                            className="group border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
-                            onClick={() => {
-                              setSelectedEvent(event);
-                              setCurrentImageIndex(0);
-                              setIsAutoPlaying(true);
-                            }}
-                          >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 relative group cursor-pointer"
-                              onClick={() => {
-                                const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
-                                const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
-                                if (event.pdf_url) items.push({ url: event.pdf_url, type: 'pdf' });
-                                if (mainImg && !items.some(item => item.url === mainImg)) {
-                                  items.unshift({ url: mainImg, type: 'image' });
-                                }
-                                if (items.length > 0) setSlideshowItems(items);
-                              }}
-                            >
-                              <ImageWithFallback 
-                                src={event.image?.startsWith('http') ? event.image : eventImages[event.image]} 
-                                alt={event.title}
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                              />
-                              {(event.images?.length > 0 || event.pdf_url) && (
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <Plus className="w-4 h-4 text-white" />
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <div className="text-white">{event.title}</div>
-                              <div className="text-xs text-gray-400">ID: {event.id}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300">
-                            {event.category_name || 'Uncategorized'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-400">
-                          <div>{event.date}</div>
-                          <div className="text-xs text-gray-500">{event.time}</div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-400">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            {event.location}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  fetchParticipants(event.id);
+                    {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).length > 0 ? (
+                      (activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => (
+                        <tr 
+                          key={event.id} 
+                          className="group border-b border-white/5 hover:bg-white/[0.02] transition-colors cursor-pointer"
+                          onClick={() => {
+                            setSelectedEvent(event);
+                            setCurrentImageIndex(0);
+                            setIsAutoPlaying(true);
+                          }}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 relative group cursor-pointer"
+                                onClick={() => {
+                                  const mainImg = event.image?.startsWith('http') ? event.image : eventImages[event.image];
+                                  const items = (event.images || []).map(img => ({ url: img.url, type: 'image' }));
+                                  if (event.pdf_url) items.push({ url: event.pdf_url, type: 'pdf' });
+                                  if (mainImg && !items.some(item => item.url === mainImg)) {
+                                    items.unshift({ url: mainImg, type: 'image' });
+                                  }
+                                  if (items.length > 0) setSlideshowItems(items);
                                 }}
-                                className="text-sm text-white mb-1 hover:text-purple-400 transition-colors"
                               >
-                                {event.attendees}/{event.capacity}
-                              </button>
-                              <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                                <div 
-                                  className="h-full bg-gradient-to-r from-purple-500 to-blue-600 rounded-full"
-                                  style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
+                                <ImageWithFallback 
+                                  src={event.image?.startsWith('http') ? event.image : eventImages[event.image]} 
+                                  alt={event.title}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                 />
+                                {(event.images?.length > 0 || event.pdf_url) && (
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Plus className="w-4 h-4 text-white" />
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-white">{event.title}</div>
+                                <div className="text-xs text-gray-400">ID: {event.id}</div>
                               </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                            {event.pdf_url && (
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300">
+                              {event.category_name || 'Uncategorized'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-400">
+                            <div>{event.date}</div>
+                            <div className="text-xs text-gray-500">{event.time}</div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-400">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-4 h-4" />
+                              {event.location}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    fetchParticipants(event.id);
+                                  }}
+                                  className="text-sm text-white mb-1 hover:text-purple-400 transition-colors"
+                                >
+                                  {event.attendees}/{event.capacity}
+                                </button>
+                                <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                  <div 
+                                    className="h-full bg-gradient-to-r from-purple-500 to-blue-600 rounded-full"
+                                    style={{ width: `${(event.attendees / event.capacity) * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                              {event.pdf_url && (
+                                <button 
+                                  onClick={() => handleDownloadReport(event)}
+                                  className="p-2 rounded-lg text-gray-400 hover:text-green-400 hover:bg-green-500/10 transition-all"
+                                  title="Download PDF Report"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                              )}
                               <button 
-                                onClick={() => handleDownloadReport(event)}
-                                className="p-2 rounded-lg text-gray-400 hover:text-green-400 hover:bg-green-500/10 transition-all"
-                                title="Download PDF Report"
+                                onClick={() => {
+                                  setSelectedEvent(event);
+                                  setCurrentImageIndex(0);
+                                  setIsAutoPlaying(true);
+                                }}
+                                className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
+                                title="View Details"
                               >
-                                <Download className="w-4 h-4" />
+                                <Activity className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleEditClick(event)}
+                                className="p-2 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
+                                title="Edit Event"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteEvent(event.id)}
+                                className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                title="Delete Event"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-20 text-center text-gray-500">
+                          <div className="flex flex-col items-center gap-3">
+                            <Calendar className="w-10 h-10 text-white/10" />
+                            <p>No {activeTab} events found.</p>
+                            {activeTab === 'upcoming' && (
+                              <button 
+                                onClick={() => setShowCreateForm(true)}
+                                className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                              >
+                                Create your first event
                               </button>
                             )}
-                            <button 
-                              onClick={() => {
-                                setSelectedEvent(event);
-                                setCurrentImageIndex(0);
-                                setIsAutoPlaying(true);
-                              }}
-                              className="p-2 rounded-lg text-gray-400 hover:text-purple-400 hover:bg-purple-500/10 transition-all"
-                              title="View Details"
-                            >
-                              <Activity className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleEditClick(event)}
-                              className="p-2 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all"
-                              title="Edit Event"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteEvent(event.id)}
-                              className="p-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                              title="Delete Event"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1441,21 +1405,23 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-purple-400" />
-                        <span className="text-white font-medium">Attendance</span>
+                  {!selectedEvent.is_rsvp_based && (
+                    <div className="p-6 rounded-2xl bg-white/5 border border-white/10">
+                      <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-5 h-5 text-purple-400" />
+                          <span className="text-white font-medium">Attendance</span>
+                        </div>
+                        <span className="text-gray-400 text-sm">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</span>
                       </div>
-                      <span className="text-gray-400 text-sm">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</span>
+                      <div className="h-3 rounded-full bg-white/5 overflow-hidden p-0.5 border border-white/10">
+                        <div 
+                          className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-purple-600 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(168,85,247,0.5)]"
+                          style={{ width: `${Math.min((selectedEvent.attendees / selectedEvent.capacity) * 100, 100)}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="h-3 rounded-full bg-white/5 overflow-hidden p-0.5 border border-white/10">
-                      <div 
-                        className="h-full bg-gradient-to-r from-purple-500 via-blue-500 to-purple-600 rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(168,85,247,0.5)]"
-                        style={{ width: `${Math.min((selectedEvent.attendees / selectedEvent.capacity) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

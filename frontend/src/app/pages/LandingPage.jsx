@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext.jsx';
 import { Calendar, Users, MapPin, Sparkles, Zap, Shield, FileText, X, ChevronLeft, ChevronRight, Globe } from 'lucide-react';
 import { eventImages } from '../data/eventImages.js';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
@@ -7,12 +8,23 @@ import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
 
 export default function LandingPage() {
   console.log('LandingPage rendered');
+  const navigate = useNavigate();
+  const { user, loading: authLoading, logout } = useAuth();
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [slideshowItems, setSlideshowItems] = useState(null);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (user.user_type === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/student/dashboard');
+      }
+    }
+  }, [user, authLoading, navigate]);
 
   const containsCross = (text) => {
     if (!text) return false;
@@ -123,11 +135,7 @@ export default function LandingPage() {
                     Dashboard
                   </Link>
                   <button 
-                    onClick={() => {
-                      localStorage.removeItem('user');
-                      localStorage.removeItem('userId');
-                      setUser(null);
-                    }}
+                    onClick={logout}
                     className="px-6 py-2 rounded-xl bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all"
                   >
                     Logout
@@ -341,10 +349,12 @@ export default function LandingPage() {
                         <MapPin className="w-4 h-4 text-blue-400" />
                         <span>{event.location}</span>
                       </div>
-                      <div className="flex items-center gap-2 text-gray-400 text-sm">
-                        <Users className="w-4 h-4 text-pink-400" />
-                        <span>{event.attendees}/{event.capacity} attending</span>
-                      </div>
+                      {!event.is_rsvp_based && (
+                        <div className="flex items-center gap-2 text-gray-400 text-sm">
+                          <Users className="w-4 h-4 text-pink-400" />
+                          <span>{event.attendees}/{event.capacity} attending</span>
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => {
@@ -554,13 +564,15 @@ export default function LandingPage() {
                         <div className="text-white">{selectedEvent.location}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                      <Users className="w-6 h-6 text-pink-400" />
-                      <div>
-                        <div className="text-sm text-gray-400 uppercase tracking-wider">Availability</div>
-                        <div className="text-white">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</div>
+                    {!selectedEvent.is_rsvp_based && (
+                      <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                        <Users className="w-6 h-6 text-pink-400" />
+                        <div>
+                          <div className="text-sm text-gray-400 uppercase tracking-wider">Availability</div>
+                          <div className="text-white">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="mb-8">

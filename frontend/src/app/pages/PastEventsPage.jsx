@@ -4,6 +4,7 @@ import { Calendar, ChevronRight, ArrowLeft, Download, Eye, MapPin, Users, X, Act
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 import { eventImages } from '../data/eventImages.js';
 import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
+import Sidebar from '../components/Sidebar.jsx';
 
 export default function PastEventsPage() {
   const [events, setEvents] = useState([]);
@@ -186,32 +187,19 @@ export default function PastEventsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0d1f] text-white">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-[#0a0d1f]/80 border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to={user?.user_type === 'admin' ? "/admin/dashboard" : "/student/dashboard"} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Dashboard</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <span className="text-xl text-white tracking-tight">CampusEvents</span>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
+    <div className="min-h-screen bg-[#0a0d1f] flex">
+      <Sidebar />
+
+      <main className="flex-1 overflow-auto">
+        <div className="max-w-7xl mx-auto p-6 lg:p-8">
+          <div className="mb-12">
+            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+              Past Events
+            </h1>
+            <p className="text-gray-400">Memories from our previous campus gatherings</p>
           </div>
-        </div>
-      </nav>
 
-      <main className="pt-32 pb-20 px-6 max-w-7xl mx-auto">
-        <div className="mb-12">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
-            Past Events
-          </h1>
-          <p className="text-gray-400">Memories from our previous campus gatherings</p>
-        </div>
-
-        {loading ? (
+          {loading ? (
           <div className="flex justify-center items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
           </div>
@@ -304,8 +292,9 @@ export default function PastEventsPage() {
                 </div>
               </div>
             ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Full Screen Slideshow */}
@@ -358,165 +347,96 @@ export default function PastEventsPage() {
                         selectedEvent.images && selectedEvent.images.length > 0
                           ? selectedEvent.images[currentImageIndex].url
                           : (selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image])
-                      } 
+                      }
                       alt={selectedEvent.title}
-                      className="w-full h-full object-cover transition-all duration-700 animate-in fade-in zoom-in-105"
+                      className="w-full h-full object-cover transition-all duration-700"
                     />
                     
-                    {/* Slideshow Trigger Overlay */}
-                    <button 
-                      onClick={() => {
-                        const mainImg = selectedEvent.image?.startsWith('http') ? selectedEvent.image : eventImages[selectedEvent.image];
-                        const items = (selectedEvent.images || []).map(img => ({ url: img.url, type: 'image' }));
-                        // Removed PDF from slideshow items
-                        if (mainImg && !items.some(item => item.url === mainImg)) {
-                          items.unshift({ url: mainImg, type: 'image' });
-                        }
-                        setSlideshowItems(items);
-                      }}
-                      className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[2px]"
-                    >
-                      <div className="px-6 py-2 rounded-full bg-white/20 border border-white/30 text-white text-sm font-medium flex items-center gap-2">
-                        <Sparkles className="w-4 h-4" />
-                        View Full Screen
-                      </div>
-                    </button>
-
-                    {/* Slideshow Controls */}
+                    {/* Image Navigation Dots */}
                     {selectedEvent.images && selectedEvent.images.length > 1 && (
-                      <>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsAutoPlaying(false);
-                            setCurrentImageIndex((prev) => (prev === 0 ? selectedEvent.images.length - 1 : prev - 1));
-                          }}
-                          className="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <ChevronLeft className="w-6 h-6" />
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsAutoPlaying(false);
-                            setCurrentImageIndex((prev) => (prev === selectedEvent.images.length - 1 ? 0 : prev + 1));
-                          }}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <ChevronRight className="w-6 h-6" />
-                        </button>
-                        
-                        {/* Auto-play Status & Dots */}
-                        <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-3">
-                          <div className="flex gap-2">
-                            {selectedEvent.images.map((_, idx) => (
-                              <button 
-                                key={idx}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsAutoPlaying(false);
-                                  setCurrentImageIndex(idx);
-                                }}
-                                className={`h-1.5 rounded-full transition-all ${idx === currentImageIndex ? 'bg-purple-500 w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'}`}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </>
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
+                        {selectedEvent.images.map((_, idx) => (
+                          <button
+                            key={idx}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentImageIndex(idx);
+                              setIsAutoPlaying(false);
+                            }}
+                            className={`w-1.5 h-1.5 rounded-full transition-all ${
+                              idx === currentImageIndex ? 'bg-purple-500 w-4' : 'bg-white/30 hover:bg-white/50'
+                            }`}
+                          />
+                        ))}
+                      </div>
                     )}
+                    
+                    {/* Full Screen Button */}
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSlideshowItems(selectedEvent.images || [{ url: selectedEvent.image }]);
+                      }}
+                      className="absolute top-4 right-4 p-2 rounded-xl bg-black/50 backdrop-blur-md border border-white/10 text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-black/70"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </button>
                   </div>
-                  
-                  {/* Attachments & Links */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* PDF Attachment */}
-                    {selectedEvent.pdf_url && (
-                      <a 
-                        href={selectedEvent.pdf_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-purple-500/30 transition-all cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                            <FileText className="w-5 h-5 text-purple-400" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-white font-medium text-sm truncate">Attachment</div>
-                            <div className="text-xs text-gray-500">PDF Document</div>
-                          </div>
-                        </div>
-                      </a>
-                    )}
 
-                    {/* Website Link */}
-                    {selectedEvent.website_url && (
-                      <a 
-                        href={selectedEvent.website_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="p-4 rounded-2xl bg-white/5 border border-white/10 group hover:border-blue-500/30 transition-all cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                            <Globe className="w-5 h-5 text-blue-400" />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-white font-medium text-sm truncate">Website</div>
-                            <div className="text-xs text-gray-500">Official Link</div>
-                          </div>
-                        </div>
-                      </a>
-                    )}
-                  </div>
+                  {/* Thumbnail Strip */}
+                  {selectedEvent.images && selectedEvent.images.length > 1 && (
+                    <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                      {selectedEvent.images.map((img, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setCurrentImageIndex(idx);
+                            setIsAutoPlaying(false);
+                          }}
+                          className={`relative flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+                            idx === currentImageIndex ? 'border-purple-500 scale-95' : 'border-transparent opacity-50 hover:opacity-100'
+                          }`}
+                        >
+                          <ImageWithFallback src={img.url} alt={`Thumbnail ${idx}`} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Right Side - Info */}
-                <div className="flex flex-col">
-                  <div className="inline-block self-start px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 mb-4">
-                    Past Event
+                <div className="space-y-8">
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-400 text-xs font-semibold border border-purple-500/30">
+                        {selectedEvent.category?.name || 'Event'}
+                      </span>
+                    </div>
+                    <h1 className="text-3xl font-bold text-white">{selectedEvent.title}</h1>
                   </div>
-                  <h3 className="text-3xl lg:text-4xl text-white font-bold mb-6">{selectedEvent.title}</h3>
-                  
-                  <div className="space-y-4 mb-8">
+
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
                       <Calendar className="w-6 h-6 text-purple-400" />
                       <div>
-                        <div className="text-sm text-gray-400 uppercase tracking-wider">Date & Time</div>
-                        <div className="text-white font-medium">
-                          {selectedEvent.date}
-                          {selectedEvent.end_date && ` - ${selectedEvent.end_date}`}
-                        </div>
-                        <div className="text-gray-400 text-sm">
-                          {selectedEvent.time}
-                          {selectedEvent.end_time && ` - ${selectedEvent.end_time}`}
-                        </div>
+                        <div className="text-sm text-gray-400 uppercase tracking-wider">Date</div>
+                        <div className="text-white">{selectedEvent.date}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
                       <MapPin className="w-6 h-6 text-blue-400" />
                       <div>
                         <div className="text-sm text-gray-400 uppercase tracking-wider">Location</div>
-                        <div className="text-white font-medium">{selectedEvent.location}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                      <Users className="w-6 h-6 text-pink-400" />
-                      <div>
-                        <div className="text-sm text-gray-400 uppercase tracking-wider">Final Attendance</div>
-                        <div className="text-white font-medium">{selectedEvent.attendees} / {selectedEvent.capacity} students</div>
+                        <div className="text-white">{selectedEvent.location}</div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mb-8 flex-1">
+                  <div className="mb-8">
                     <h4 className="text-white font-semibold mb-3">About this event</h4>
-                    <p className="text-gray-400 leading-relaxed">
+                    <p className="text-gray-400 leading-relaxed mb-6">
                       {selectedEvent.description}
                     </p>
-                  </div>
-
-                  <div className="mt-auto pt-6 border-t border-white/10 text-center italic text-gray-500 text-sm">
-                    This event was successfully completed on {selectedEvent.date}
                   </div>
                 </div>
               </div>
@@ -525,102 +445,80 @@ export default function PastEventsPage() {
         </div>
       )}
 
-      {/* Edit Past Event Modal */}
+      {/* Edit Modal */}
       {editingEvent && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div 
-            className="absolute inset-0 bg-[#0a0d1f]/95 backdrop-blur-md"
-            onClick={() => !isSubmitting && setEditingEvent(null)}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setEditingEvent(null)}
           ></div>
-          
-          <div className="relative w-full max-w-2xl rounded-3xl bg-gradient-to-br from-white/10 to-white/[0.02] backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden">
-            <div className="p-8">
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Update Past Event</h2>
-                  <p className="text-gray-400 text-sm mt-1">{editingEvent.title}</p>
+          <div className="relative w-full max-w-2xl rounded-3xl bg-[#0a0d1f] border border-white/10 p-8 shadow-2xl">
+            <h2 className="text-2xl text-white font-bold mb-6">Update Past Event</h2>
+            <form onSubmit={handleUpdatePastEvent} className="space-y-6">
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-sm font-medium text-purple-400 uppercase tracking-wider">
+                  <ImageIcon className="w-4 h-4" />
+                  Add Event Images (Geo-tagged)
+                </label>
+                <div className="relative group">
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={(e) => setNewImages(Array.from(e.target.files))}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="border-2 border-dashed border-white/10 rounded-2xl p-10 text-center group-hover:border-purple-500/50 group-hover:bg-white/[0.02] transition-all">
+                    <Upload className="w-10 h-10 text-gray-500 mx-auto mb-4 group-hover:text-purple-400 group-hover:scale-110 transition-all" />
+                    <p className="text-gray-400 group-hover:text-white transition-colors">
+                      {newImages.length > 0 
+                        ? `${newImages.length} images selected` 
+                        : "Drop images here or click to browse"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">Supports JPG, PNG (Max 5MB per image)</p>
+                  </div>
                 </div>
-                <button 
-                  onClick={() => setEditingEvent(null)}
-                  className="p-2 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-all"
-                >
-                  <X className="w-6 h-6" />
-                </button>
               </div>
 
-              <form onSubmit={handleUpdatePastEvent} className="space-y-8">
-                {/* Image Upload */}
-                <div className="space-y-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                    <ImageIcon className="w-4 h-4 text-purple-400" />
-                    Add Event Images (Geo-tagged)
-                  </label>
-                  <div className="relative group">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => setNewImages(Array.from(e.target.files))}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div className="p-8 border-2 border-dashed border-white/10 rounded-2xl bg-white/[0.02] group-hover:bg-white/[0.05] group-hover:border-purple-500/50 transition-all text-center">
-                      <Upload className="w-8 h-8 text-gray-500 mx-auto mb-3 group-hover:text-purple-400 transition-colors" />
-                      <p className="text-gray-400 text-sm">
-                        {newImages.length > 0 
-                          ? `${newImages.length} images selected` 
-                          : "Drop images here or click to browse"}
-                      </p>
-                      <p className="text-gray-600 text-xs mt-2">Supports JPG, PNG (Max 5MB per image)</p>
-                    </div>
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-sm font-medium text-blue-400 uppercase tracking-wider">
+                  <FileText className="w-4 h-4" />
+                  Upload 1-Page Event Report (PDF)
+                </label>
+                <div className="relative group">
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => setNewReport(e.target.files[0])}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="border-2 border-dashed border-white/10 rounded-2xl p-10 text-center group-hover:border-blue-500/50 group-hover:bg-white/[0.02] transition-all">
+                    <FileText className="w-10 h-10 text-gray-500 mx-auto mb-4 group-hover:text-blue-400 group-hover:scale-110 transition-all" />
+                    <p className="text-gray-400 group-hover:text-white transition-colors">
+                      {newReport ? newReport.name : "Select or drop PDF report"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">One-page PDF summary of the event</p>
                   </div>
                 </div>
+              </div>
 
-                {/* Report Upload */}
-                <div className="space-y-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                    <FileText className="w-4 h-4 text-blue-400" />
-                    Upload 1-Page Event Report (PDF)
-                  </label>
-                  <div className="relative group">
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      onChange={(e) => setNewReport(e.target.files[0])}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div className="p-8 border-2 border-dashed border-white/10 rounded-2xl bg-white/[0.02] group-hover:bg-white/[0.05] group-hover:border-blue-500/50 transition-all text-center">
-                      <FileText className="w-8 h-8 text-gray-500 mx-auto mb-3 group-hover:text-blue-400 transition-colors" />
-                      <p className="text-gray-400 text-sm">
-                        {newReport ? newReport.name : "Drop PDF report here or click to browse"}
-                      </p>
-                      <p className="text-gray-600 text-xs mt-2">One-page PDF summary of the event</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setEditingEvent(null)}
-                    className="flex-1 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold hover:shadow-[0_0_30px_-5px_rgba(147,51,234,0.5)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                  >
-                    {isSubmitting ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        <span>Updating...</span>
-                      </div>
-                    ) : "Update Event Data"}
-                  </button>
-                </div>
-              </form>
-            </div>
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingEvent(null)}
+                  className="flex-1 px-6 py-4 rounded-2xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold hover:shadow-[0_0_30px_-5px_rgba(147,51,234,0.5)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  {isSubmitting ? "Updating..." : "Update Event"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

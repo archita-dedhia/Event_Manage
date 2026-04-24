@@ -3,6 +3,15 @@ import shutil
 import io
 import urllib.parse
 import requests
+from dotenv import load_dotenv
+
+# Load environment variables at the very beginning
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(env_path):
+    load_dotenv(env_path)
+else:
+    load_dotenv()
+
 from datetime import datetime, timezone, timedelta
 from fastapi import Depends, FastAPI, HTTPException, status, File, UploadFile, Request
 from fastapi.responses import StreamingResponse
@@ -22,6 +31,7 @@ from .database import get_db
 from . import models
 from . import schemas
 from . import auth_utils
+from . import cloudinary_utils
 from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/login")
@@ -86,18 +96,19 @@ def health_check():
 @app.post("/api/upload")
 async def upload_file(request: Request, file: UploadFile = File(...)):
     try:
-        # Create a unique filename to avoid collisions
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
+        # Read file content
+        content = await file.read()
         
-        # Save the file
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        # Upload to Cloudinary
+        cloudinary_url = cloudinary_utils.upload_to_cloudinary(content, file.filename)
+        
+        if not cloudinary_url:
+            raise HTTPException(status_code=500, detail="Cloudinary upload failed. Please check your configuration.")
             
-        # Return the URL to access the file
-        base_url = str(request.base_url).rstrip("/")
-        encoded_filename = urllib.parse.quote(file.filename)
-        return {"url": f"{base_url}/uploads/{encoded_filename}", "filename": file.filename}
+        return {"url": cloudinary_url, "filename": file.filename}
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=f"Could not upload file: {str(e)}")
 
 

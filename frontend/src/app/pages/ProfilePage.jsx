@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext.jsx';
 import { User, Mail, Lock, ArrowLeft, Save, ShieldCheck, Calendar, ChevronRight, X } from 'lucide-react';
+import Sidebar from '../components/Sidebar.jsx';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -89,25 +90,12 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#0a0d1f] p-6 sm:p-12 relative">
-      {/* Logo moved to the right */}
-      <div className="absolute top-8 right-8 flex items-center gap-2 border-l border-white/10 pl-6 z-10">
-        <span className="text-xl text-white tracking-tight hidden sm:inline">CampusEvents</span>
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
-          <Calendar className="w-6 h-6 text-white" />
-        </div>
-      </div>
-
-      <div className="w-full max-w-2xl mx-auto">
-        <Link 
-          to={user.user_type === 'admin' ? '/admin/dashboard' : '/student/dashboard'} 
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to dashboard
-        </Link>
-
-        <div className="rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 p-8 sm:p-12">
+    <div className="min-h-screen bg-[#0a0d1f] flex">
+      <Sidebar />
+      
+      <main className="flex-1 overflow-auto p-6 sm:p-12">
+        <div className="w-full max-w-2xl mx-auto">
+          <div className="rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 p-8 sm:p-12">
           <div className="flex items-center gap-6 mb-10">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
               <User className="w-10 h-10 text-white" />
@@ -242,8 +230,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+    </main>
 
-      {/* Verification Modal */}
+      {/* Scroll to Top Button */}
       {showVerifyModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
           <div 
