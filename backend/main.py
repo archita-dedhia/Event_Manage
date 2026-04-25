@@ -745,3 +745,9 @@ def get_admin_analytics(current_user: models.User = Depends(get_current_user), d
         "average_attendance": average_attendance
     }
 
+
+if __name__ == "__main__":
+    import uvicorn
+    from .config import PORT
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=PORT, reload=True)
+

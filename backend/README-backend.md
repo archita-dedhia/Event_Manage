@@ -36,6 +36,7 @@ MYSQL_PASSWORD=123456
 MYSQL_HOST=127.0.0.1
 MYSQL_PORT=3306
 MYSQL_DB=saas_app
+PORT=8000
 ```
 
 Make sure your MySQL service is running and that the root password is `123456`.
@@ -61,10 +62,16 @@ From the project root (so that `backend` is a package):
 ```bash
 cd "C:\Users\Archita\OneDrive\Pictures\Design Dark SaaS Landing Page"
 .\.venv\Scripts\activate
+# The server will automatically use the PORT from your .env file
 uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API will be available at: `http://localhost:8000`
+Or run it directly using the Python entry point:
+```bash
+python -m backend.main
+```
+
+The API will be available at: `http://localhost:8000` (or whatever PORT you set in .env)
 
 ## 6. API endpoints
 
