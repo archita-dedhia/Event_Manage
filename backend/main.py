@@ -27,11 +27,11 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.units import inch
 
-from .database import get_db
-from . import models
-from . import schemas
-from . import auth_utils
-from . import cloudinary_utils
+from database import get_db
+import models
+import schemas
+import auth_utils
+import cloudinary_utils
 from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/login")
@@ -748,6 +748,6 @@ def get_admin_analytics(current_user: models.User = Depends(get_current_user), d
 
 if __name__ == "__main__":
     import uvicorn
-    from .config import PORT
-    uvicorn.run("backend.main:app", host="0.0.0.0", port=PORT, reload=True)
+    import config
+    uvicorn.run("main:app", host="0.0.0.0", port=config.PORT, reload=True)
 

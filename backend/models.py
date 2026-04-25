@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import Column, DateTime, Integer, String, Text, ForeignKey, Float, Boolean
 from sqlalchemy.orm import relationship
 
-from .database import Base
+from database import Base
 
 def get_ist_time():
     # UTC + 5:30

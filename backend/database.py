@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-from .config import get_database_url
+from config import get_database_url
 
 
 DATABASE_URL = get_database_url(include_db=True)

@@ -1,6 +1,6 @@
 import cloudinary
 import cloudinary.uploader
-from . import config
+import config
 import os
 from dotenv import load_dotenv
 

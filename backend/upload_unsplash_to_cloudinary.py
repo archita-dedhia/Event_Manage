@@ -9,8 +9,9 @@ if os.path.exists(env_path):
 else:
     load_dotenv()
 
-from .database import SessionLocal
-from . import models, cloudinary_utils
+from database import SessionLocal
+import models
+import cloudinary_utils
 
 # Mapping from eventImages.js
 UNSPLASH_MAPPING = {

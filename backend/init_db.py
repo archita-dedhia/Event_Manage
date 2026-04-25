@@ -16,9 +16,9 @@ This will:
 from sqlalchemy import create_engine, text
 
 
-from .config import MYSQL_DB, get_database_url
-from .database import Base
-from .models import User, Category, Event, Participant
+from config import MYSQL_DB, get_database_url
+from database import Base
+from models import User, Category, Event, Participant
 
 
 
@@ -55,7 +55,7 @@ def add_sample_categories(db_url):
     
     try:
         # Check if categories already exist
-        from .models import Category
+        from models import Category
         existing = db.query(Category).first()
         if existing:
             print("Categories already exist, skipping...")
@@ -88,7 +88,7 @@ def add_sample_users(db_url):
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=create_engine(db_url))
     db = SessionLocal()
     
-    from . import auth_utils
+    import auth_utils
     try:
         # Check if users already exist
 
@@ -143,7 +143,7 @@ def add_sample_events(db_url):
         categories = {c.name: c.id for c in db.query(Category).all()}
         
         # Get an admin user to be the organizer
-        from .models import User
+        from models import User
         admin = db.query(User).filter(User.user_type == "admin").first()
         if not admin:
             print("No admin user found to be organizer. Skipping events.")

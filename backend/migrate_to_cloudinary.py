@@ -9,8 +9,9 @@ if os.path.exists(env_path):
 else:
     load_dotenv()
 
-from .database import SessionLocal, get_db
-from . import models, cloudinary_utils
+from database import SessionLocal, get_db
+import models
+import cloudinary_utils
 
 def migrate_local_to_cloudinary():
     """
