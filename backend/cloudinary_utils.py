@@ -15,6 +15,13 @@ def configure_cloudinary():
     """
     Configure Cloudinary with values from config or environment.
     """
+    cloudinary_url = config.CLOUDINARY_URL or os.getenv("CLOUDINARY_URL")
+    
+    if cloudinary_url:
+        # If CLOUDINARY_URL is present, it's the preferred way
+        cloudinary.config(cloudinary_url=cloudinary_url, secure=True)
+        return
+
     cloud_name = config.CLOUDINARY_CLOUD_NAME or os.getenv("CLOUDINARY_CLOUD_NAME")
     api_key = config.CLOUDINARY_API_KEY or os.getenv("CLOUDINARY_API_KEY")
     api_secret = config.CLOUDINARY_API_SECRET or os.getenv("CLOUDINARY_API_SECRET")
@@ -38,23 +45,15 @@ configure_cloudinary()
 def upload_to_cloudinary(file_content, filename, resource_type="auto"):
     """
     Upload a file to Cloudinary and return the secure URL.
-    resource_type can be "image", "video", or "raw" (for PDFs/docs).
-    Using "auto" lets Cloudinary decide.
     """
     try:
-        # Determine if it's a PDF to set the correct folder/type if needed
-        folder = "campus_events"
-        if filename.lower().endswith('.pdf'):
-            resource_type = "raw"
-            folder = "campus_events/reports"
-        else:
-            resource_type = "image"
-            folder = "campus_events/images"
+        # Simplified folder logic
+        folder = "campus_events/reports" if filename.lower().endswith('.pdf') else "campus_events/images"
 
         upload_result = cloudinary.uploader.upload(
             file_content,
             folder=folder,
-            resource_type=resource_type,
+            resource_type="auto", # Let Cloudinary decide
             use_filename=True,
             unique_filename=True,
             overwrite=True

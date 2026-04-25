@@ -30,11 +30,12 @@ export default function LoginPage() {
     setLoading(true);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout for remote DB
 
+    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
       console.log('Attempting login for:', email, 'as', userType);
-      const response = await fetch('http://127.0.0.1:8000/api/users/login', {
+      const response = await fetch(`${API_URL}/api/users/login`, {
         method: 'POST',
         signal: controller.signal,
         headers: {

@@ -64,11 +64,12 @@ export default function LandingPage() {
     setLoading(true);
     setFetchError(null);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // Increased to 20s for remote DB
 
+    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
-      console.log('Attempting to fetch events from http://127.0.0.1:8000/api/events (with timeout)');
-      const response = await fetch('http://127.0.0.1:8000/api/events', { 
+      console.log(`Attempting to fetch events from ${API_URL}/api/events (with timeout)`);
+      const response = await fetch(`${API_URL}/api/events`, { 
         signal: controller.signal,
         headers: { 'Accept': 'application/json' }
       });
@@ -87,9 +88,8 @@ export default function LandingPage() {
     } catch (err) {
       clearTimeout(timeoutId);
       console.error('Detailed fetch error:', err);
-      const msg = err.name === 'AbortError' ? 'Request timed out (8s). The backend at http://127.0.0.1:8000/api/events is not responding.' : err.message;
+      const msg = err.name === 'AbortError' ? 'Request timed out (20s). The backend is taking too long to respond.' : err.message;
       setFetchError(msg);
-      window.alert('BACKEND CONNECTION ERROR: ' + msg);
     } finally {
       setLoading(false);
     }

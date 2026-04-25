@@ -112,7 +112,7 @@ export default function StudentDashboard() {
   const fetchEventsAndBookings = async () => {
     setLoading(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // Increased to 20s for remote DB
 
     try {
       const token = localStorage.getItem('token');
@@ -121,7 +121,7 @@ export default function StudentDashboard() {
         return;
       }
       
-      const API_BASE_URL = 'http://127.0.0.1:8000';
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
       console.log(`Student Dashboard - Fetching data from ${API_BASE_URL}`);
       const headers = {
         'Authorization': `Bearer ${token}`
@@ -154,16 +154,8 @@ export default function StudentDashboard() {
         return eventDate >= today && !containsCross(event.title) && !containsCross(event.description);
       }).length;
 
-      if (upcomingCount === 0) {
-        alert('No upcoming events currently available.');
-      }
-
       setBookedEvents(bookingsData.map(b => b.event_id.toString()));
       
-      if (bookingsData.length === 0) {
-        alert('You have no event bookings yet.');
-      }
-
       setBackendCategories(['All', ...categoriesData.map(c => c.name)]);
     } catch (err) {
       clearTimeout(timeoutId);
@@ -241,27 +233,30 @@ export default function StudentDashboard() {
     const token = localStorage.getItem('token');
     const isBooked = bookedEvents.includes(eventId.toString());
 
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
       if (isBooked) {
         // Find the participant record to delete
-        const response = await fetch(`http://127.0.0.1:8000/api/participants/user/${user.id}`, {
+        const response = await fetch(`${API_BASE_URL}/api/participants/user/${user.id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const bookingsData = await response.json();
         const booking = bookingsData.find(b => b.event_id.toString() === eventId.toString());
         
         if (booking) {
-          const deleteRes = await fetch(`http://127.0.0.1:8000/api/participants/${booking.id}`, {
+          const deleteRes = await fetch(`${API_BASE_URL}/api/participants/${booking.id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
           });
           
           if (deleteRes.ok) {
             setBookedEvents(bookedEvents.filter(id => id !== eventId.toString()));
+            alert('Successfully cancelled booking');
+            fetchEventsAndBookings();
           }
         }
       } else {
-        const response = await fetch(`http://127.0.0.1:8000/api/participants`, {
+        const response = await fetch(`${API_BASE_URL}/api/participants`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -272,17 +267,13 @@ export default function StudentDashboard() {
         
         if (response.ok) {
           setBookedEvents([...bookedEvents, eventId.toString()]);
+          alert('Successfully booked event');
+          fetchEventsAndBookings();
         } else {
           const errorData = await response.json();
           alert(errorData.detail || 'Failed to book event');
         }
       }
-      // Refresh events to update attendee counts
-      const eventsRes = await fetch('http://127.0.0.1:8000/api/events', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const eventsData = await eventsRes.json();
-      setEvents(eventsData);
     } catch (err) {
       console.error('Booking error:', err);
     }
@@ -317,21 +308,35 @@ export default function StudentDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
+        {/* Sticky Mobile Header */}
+        <div className="sticky top-0 z-40 lg:hidden flex items-center justify-between p-4 bg-[#0a0d1f]/80 backdrop-blur-xl border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
+              className="p-2 rounded-lg bg-white/5 border border-white/10 text-gray-400"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <span className="text-white font-semibold">CampusEvents</span>
+          </div>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-[10px] text-white font-bold">
+            {user.full_name.split(' ').map(n => n[0]).join('')}
+          </div>
+        </div>
+
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-8 gap-4">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
-                className="lg:hidden p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              <div>
-                <h1 className="text-2xl md:text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
-                <p className="text-sm text-gray-400">Discover and book amazing campus events</p>
-              </div>
+          {/* Header (Desktop) */}
+          <div className="hidden lg:flex justify-between items-start mb-8 gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
+              <p className="text-sm text-gray-400">Discover and book amazing campus events</p>
             </div>
+          </div>
+
+          {/* Mobile Welcome (Only visible on mobile, below sticky header) */}
+          <div className="lg:hidden mb-8">
+            <h1 className="text-2xl font-bold text-white mb-1">Hi, {user.full_name.split(' ')[0]}! 👋</h1>
+            <p className="text-sm text-gray-400">What's happening on campus today?</p>
           </div>
 
           {/* Search Bar */}

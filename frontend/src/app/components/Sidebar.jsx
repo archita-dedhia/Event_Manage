@@ -36,12 +36,13 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchCounts = async () => {
       try {
-        const eventsRes = await fetch('http://127.0.0.1:8000/api/events');
+        const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+        const eventsRes = await fetch(`${API_URL}/api/events`);
         const eventsData = await eventsRes.json();
         setEventsCount(eventsData.length);
 
         if (user && user.user_type === 'student') {
-          const bookingsRes = await fetch(`http://127.0.0.1:8000/api/participants/user/${user.id}`, {
+          const bookingsRes = await fetch(`${API_URL}/api/participants/user/${user.id}`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
           });
           const bookingsData = await bookingsRes.json();

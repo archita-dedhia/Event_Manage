@@ -34,6 +34,7 @@ import GoogleCalendar from '../components/GoogleCalendar.jsx';
 import Sidebar from '../components/Sidebar.jsx';
 
 export default function AdminDashboard() {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
   const { user, loading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -150,7 +151,7 @@ export default function AdminDashboard() {
 
   const handleDownloadReport = async (event) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${event.id}/report`, {
+      const response = await fetch(`${API_URL}/api/events/${event.id}/report`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -180,7 +181,7 @@ export default function AdminDashboard() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/upload', {
+      const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         body: formData,
       });
@@ -204,15 +205,14 @@ export default function AdminDashboard() {
         return;
       }
 
-      console.log('Admin Dashboard - Fetching data from http://127.0.0.1:8000');
+      console.log(`Admin Dashboard - Fetching data from ${API_URL}`);
       const headers = {
         'Authorization': `Bearer ${token}`
       };
-
       const [eventsRes, categoriesRes, analyticsRes] = await Promise.all([
-        fetch(`http://127.0.0.1:8000/api/events?organizer_id=${user.id}`, { signal: controller.signal, headers }),
-        fetch('http://127.0.0.1:8000/api/categories', { signal: controller.signal, headers }),
-        fetch(`http://127.0.0.1:8000/api/admin/analytics`, { signal: controller.signal, headers })
+        fetch(`${API_URL}/api/events?organizer_id=${user.id}`, { signal: controller.signal, headers }),
+        fetch(`${API_URL}/api/categories`, { signal: controller.signal, headers }),
+        fetch(`${API_URL}/api/admin/analytics`, { signal: controller.signal, headers })
       ]);
       
       clearTimeout(timeoutId);
@@ -287,7 +287,7 @@ export default function AdminDashboard() {
         pdfUrl = await handleFileUpload(pdfFile);
       }
 
-      const response = await fetch(`http://127.0.0.1:8000/api/events`, {
+      const response = await fetch(`${API_URL}/api/events`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -373,7 +373,7 @@ export default function AdminDashboard() {
         pdfUrl = await handleFileUpload(pdfFile);
       }
 
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${editingEvent.id}`, {
+      const response = await fetch(`${API_URL}/api/events/${editingEvent.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -489,7 +489,7 @@ export default function AdminDashboard() {
     if (!confirm('Are you sure you want to delete this event?')) return;
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${id}`, {
+      const response = await fetch(`${API_URL}/api/events/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -506,7 +506,7 @@ export default function AdminDashboard() {
 
   const fetchParticipants = async (eventId) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/participants/event/${eventId}`, {
+      const response = await fetch(`${API_URL}/api/participants/event/${eventId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -551,20 +551,34 @@ export default function AdminDashboard() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
+        {/* Sticky Mobile Header */}
+        <div className="sticky top-0 z-40 lg:hidden flex items-center justify-between p-4 bg-[#0a0d1f]/80 backdrop-blur-xl border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
+              className="p-2 rounded-lg bg-white/5 border border-white/10 text-gray-400"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <span className="text-white font-semibold">Admin Panel</span>
+          </div>
+          <button 
+            onClick={() => {
+              resetForm();
+              setShowCreateForm(true);
+            }}
+            className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-600 text-white shadow-lg shadow-purple-500/20"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
+
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
-          {/* Header */}
-          <div className="flex justify-between items-start mb-8 gap-4">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
-                className="lg:hidden p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
-              <div>
-                <h1 className="text-2xl md:text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
-                <p className="text-sm text-gray-400">Manage and create campus events</p>
-              </div>
+          {/* Header (Desktop) */}
+          <div className="hidden lg:flex justify-between items-start mb-8 gap-4">
+            <div>
+              <h1 className="text-3xl mb-2 text-white">Welcome back, {user.full_name}!</h1>
+              <p className="text-gray-400">Manage and create campus events</p>
             </div>
             <button 
               onClick={() => {
@@ -574,8 +588,14 @@ export default function AdminDashboard() {
               className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-600 text-white flex items-center gap-2 hover:shadow-lg hover:shadow-purple-500/30 transition-all active:scale-95"
             >
               <Plus className="w-5 h-5" />
-              <span className="hidden sm:inline">Create Event</span>
+              <span>Create Event</span>
             </button>
+          </div>
+
+          {/* Mobile Welcome */}
+          <div className="lg:hidden mb-8">
+            <h1 className="text-2xl font-bold text-white mb-1">Hi, {user.full_name.split(' ')[0]}! ⚡</h1>
+            <p className="text-sm text-gray-400">Dashboard Overview</p>
           </div>
 
           {/* Stats Cards */}

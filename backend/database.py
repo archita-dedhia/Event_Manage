@@ -9,10 +9,13 @@ DATABASE_URL = get_database_url(include_db=True)
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    pool_recycle=3600,
+    pool_size=5,
+    max_overflow=10,
+    pool_recycle=120,  # Recycle every 2 minutes for remote DB
     pool_timeout=30,
+    connect_args={
+        "connect_timeout": 30,
+    }
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

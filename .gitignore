@@ -25,3 +25,5 @@ Thumbs.db
 
 # Build logs
 frontend/build_log.txt
+
+frontend/.env

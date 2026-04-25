@@ -45,7 +45,8 @@ export default function ProfilePage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://127.0.0.1:8000/api/users/${user.id}`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${API_URL}/api/users/${user.id}`, {
         method: 'PUT',
         signal: controller.signal,
         headers: {
@@ -92,17 +93,24 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#0a0d1f] flex">
       <Sidebar />
-      
-      <main className="flex-1 overflow-auto p-6 sm:p-12">
-        <div className="w-full max-w-2xl mx-auto">
-          <div className="rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 p-8 sm:p-12">
-          <div className="flex items-center gap-6 mb-10">
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto">
+        {/* Sticky Mobile Header */}
+        <div className="sticky top-0 z-40 lg:hidden flex items-center justify-between p-4 bg-[#0a0d1f]/80 backdrop-blur-xl border-b border-white/10">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
-              className="lg:hidden p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+              className="p-2 rounded-lg bg-white/5 border border-white/10 text-gray-400"
             >
               <Menu className="w-6 h-6" />
             </button>
+            <span className="text-white font-semibold">Profile</span>
+          </div>
+        </div>
+
+        <div className="w-full max-w-2xl mx-auto p-6 sm:p-12">
+          <div className="mb-10 hidden lg:flex items-center gap-6">
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
               <User className="w-10 h-10 text-white" />
             </div>
@@ -111,6 +119,13 @@ export default function ProfilePage() {
               <p className="text-gray-400">Manage your account information</p>
             </div>
           </div>
+
+          <div className="mb-8 lg:hidden">
+            <h1 className="text-3xl font-bold text-white mb-1">My Profile</h1>
+            <p className="text-sm text-gray-400">Manage your account information</p>
+          </div>
+
+          <div className="rounded-3xl bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-lg border border-white/10 p-8 sm:p-12">
 
           {error && (
             <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">

@@ -18,6 +18,7 @@ MYSQL_DB = os.getenv("MYSQL_DB", "saas_app")
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
+CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
 
 
 def get_database_url(include_db: bool = True) -> str:

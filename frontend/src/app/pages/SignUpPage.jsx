@@ -15,6 +15,7 @@ export default function SignUpPage() {
   const [userType, setUserType] = useState('student');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [success, setSuccess] = useState('');
 
   // If user is already logged in, redirect them to their dashboard
@@ -29,24 +30,52 @@ export default function SignUpPage() {
     }
   }, [user, navigate]);
 
-  const handleSignUp = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
+  const validateForm = () => {
+    const newFieldErrors = {};
+    
+    // Email validation
+    if (!email.endsWith('@apsit.edu.in')) {
+      newFieldErrors.email = "Please use your APSIT email address (@apsit.edu.in)";
+    }
 
-    // Validate
-    if (!fullName.trim()) {
-      setError('Full name is required');
-      return;
+    // Moodle ID validation (numeric only)
+    if (!/^\d+$/.test(moodleId)) {
+      newFieldErrors.moodle_id = "Moodle ID must contain numbers only";
+    } else if (moodleId.length !== 8) {
+      newFieldErrors.moodle_id = "Moodle ID must be exactly 8 digits";
+    }
+
+    // Check that email prefix matches moodle ID 
+    const emailPrefix = email.split('@')[0]; 
+    if (emailPrefix !== moodleId) { 
+      newFieldErrors.moodle_id = "Moodle ID must match the number in your email address"; 
+      newFieldErrors.email = "Email must start with your Moodle ID (e.g. 24102073@apsit.edu.in)"; 
+    }
+
+    // Password validation
+    if (password.length < 6) {
+      newFieldErrors.password = 'Password must be at least 6 characters';
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
+      newFieldErrors.confirmPassword = 'Passwords do not match';
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (!fullName.trim()) {
+      newFieldErrors.fullName = 'Full name is required';
+    }
+
+    setFieldErrors(newFieldErrors);
+    return Object.keys(newFieldErrors).length === 0;
+  };
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setFieldErrors({});
+    setSuccess('');
+
+    if (!validateForm()) {
       return;
     }
 
@@ -58,9 +87,10 @@ export default function SignUpPage() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
+    const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
       console.log('Attempting signup for:', email);
-      const response = await fetch('http://127.0.0.1:8000/api/users/register', {
+      const response = await fetch(`${API_URL}/api/users/register`, {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -78,12 +108,21 @@ export default function SignUpPage() {
       });
 
       clearTimeout(timeoutId);
-      console.log('Signup API Response:', response);
       const data = await response.json();
-      console.log('Signup API Data:', data);
 
       if (!response.ok) {
-        setError(data.detail || 'Sign up failed. Please try again.');
+        if (Array.isArray(data.detail)) {
+          // Extract messages from Pydantic validation errors
+          const apiFieldErrors = {};
+          data.detail.forEach(err => {
+            const field = err.loc[err.loc.length - 1];
+            apiFieldErrors[field] = err.msg;
+          });
+          setFieldErrors(apiFieldErrors);
+          setError('Please correct the highlighted errors.');
+        } else {
+          setError(data.detail || 'Sign up failed. Please try again.');
+        }
         return;
       }
 
@@ -215,10 +254,13 @@ export default function SignUpPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Enter your full name"
-                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className={`w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border ${fieldErrors.fullName || fieldErrors.full_name ? 'border-red-500/50 focus:ring-red-500/20' : 'border-white/10 focus:border-purple-500/50 focus:ring-purple-500/20'} text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all`}
                     required
                   />
                 </div>
+                {(fieldErrors.fullName || fieldErrors.full_name) && (
+                  <p className="mt-1 text-xs text-red-400 ml-1">{fieldErrors.fullName || fieldErrors.full_name}</p>
+                )}
               </div>
 
               {/* Email Field */}
@@ -234,10 +276,13 @@ export default function SignUpPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@example.edu"
-                    className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    placeholder="moodleid@apsit.edu.in"
+                    className={`w-full pl-12 pr-4 py-3 rounded-xl bg-white/5 border ${fieldErrors.email ? 'border-red-500/50 focus:ring-red-500/20' : 'border-white/10 focus:border-purple-500/50 focus:ring-purple-500/20'} text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all`}
                   />
                 </div>
+                {fieldErrors.email && (
+                  <p className="mt-1 text-xs text-red-400 ml-1">{fieldErrors.email}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -253,8 +298,11 @@ export default function SignUpPage() {
                     value={moodleId}
                     onChange={(e) => setMoodleId(e.target.value)}
                     placeholder="ID Number"
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className={`w-full px-4 py-3 rounded-xl bg-white/5 border ${fieldErrors.moodle_id ? 'border-red-500/50 focus:ring-red-500/20' : 'border-white/10 focus:border-purple-500/50 focus:ring-purple-500/20'} text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all`}
                   />
+                  {fieldErrors.moodle_id && (
+                    <p className="mt-1 text-xs text-red-400 ml-1">{fieldErrors.moodle_id}</p>
+                  )}
                 </div>
 
                 {/* Department Field */}
@@ -267,7 +315,7 @@ export default function SignUpPage() {
                     required
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-[#1a1d35] border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className={`w-full px-4 py-3 rounded-xl bg-[#1a1d35] border ${fieldErrors.department ? 'border-red-500/50 focus:ring-red-500/20' : 'border-white/10 focus:border-purple-500/50 focus:ring-purple-500/20'} text-white focus:outline-none focus:ring-2 transition-all`}
                   >
                     <option value="" disabled>Select</option>
                     <option value="Computer Science">CS</option>
@@ -275,6 +323,9 @@ export default function SignUpPage() {
                     <option value="AIML">AIML</option>
                     <option value="Data Science ">Data Science </option>
                   </select>
+                  {fieldErrors.department && (
+                    <p className="mt-1 text-xs text-red-400 ml-1">{fieldErrors.department}</p>
+                  )}
                 </div>
               </div>
 
@@ -291,10 +342,13 @@ export default function SignUpPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className={`w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border ${fieldErrors.password ? 'border-red-500/50 focus:ring-red-500/20' : 'border-white/10 focus:border-purple-500/50 focus:ring-purple-500/20'} text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all`}
                     required
                   />
                 </div>
+                {fieldErrors.password && (
+                  <p className="mt-1 text-xs text-red-400 ml-1">{fieldErrors.password}</p>
+                )}
               </div>
 
               {/* Confirm Password Field */}
@@ -310,10 +364,13 @@ export default function SignUpPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className={`w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border ${fieldErrors.confirmPassword ? 'border-red-500/50 focus:ring-red-500/20' : 'border-white/10 focus:border-purple-500/50 focus:ring-purple-500/20'} text-white placeholder-gray-500 focus:outline-none focus:ring-2 transition-all`}
                     required
                   />
                 </div>
+                {fieldErrors.confirmPassword && (
+                  <p className="mt-1 text-xs text-red-400 ml-1">{fieldErrors.confirmPassword}</p>
+                )}
               </div>
 
               {/* Terms & Conditions */}

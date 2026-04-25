@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+import re
 
 
 # User Schemas
@@ -9,9 +10,16 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
     full_name: str = Field(..., max_length=255)
-    moodle_id: Optional[str] = Field(None, max_length=50)
+    moodle_id: Optional[str] = Field(None, pattern="^\d{8}$", description="8-digit Moodle ID")
     department: Optional[str] = Field(None, max_length=100)
     user_type: str = Field(..., pattern="^(student|admin)$")  # 'student' or 'admin'
+
+    @field_validator('email')
+    @classmethod
+    def validate_apsit_email(cls, v: str) -> str:
+        if not v.endswith('@apsit.edu.in'):
+            raise ValueError('Email must be a valid @apsit.edu.in address')
+        return v
 
 
 class UserLogin(BaseModel):
@@ -25,9 +33,16 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=6)
     full_name: Optional[str] = Field(None, max_length=255)
-    moodle_id: Optional[str] = Field(None, max_length=50)
+    moodle_id: Optional[str] = Field(None, pattern="^\d{8}$", description="8-digit Moodle ID")
     department: Optional[str] = Field(None, max_length=100)
     current_password: str # Required for verification
+
+    @field_validator('email')
+    @classmethod
+    def validate_apsit_email(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not v.endswith('@apsit.edu.in'):
+            raise ValueError('Email must be a valid @apsit.edu.in address')
+        return v
 
 
 class UserOut(BaseModel):

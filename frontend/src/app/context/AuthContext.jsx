@@ -13,8 +13,9 @@ export const AuthProvider = ({ children }) => {
 
       if (token && savedUser) {
         try {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
           // Verify token with backend
-          const response = await fetch('http://127.0.0.1:8000/api/users/me', {
+          const response = await fetch(`${API_URL}/api/users/me`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }

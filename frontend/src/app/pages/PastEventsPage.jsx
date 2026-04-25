@@ -47,7 +47,8 @@ export default function PastEventsPage() {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${event.id}/report`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${API_URL}/api/events/${event.id}/report`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -80,7 +81,8 @@ export default function PastEventsPage() {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/events', { signal: controller.signal });
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${API_URL}/api/events`, { signal: controller.signal });
       
       clearTimeout(timeoutId);
 
@@ -121,6 +123,7 @@ export default function PastEventsPage() {
 
     try {
       const token = localStorage.getItem('token');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
       
       // 1. Upload new images if any
       let updatedImages = [...(editingEvent.images || [])];
@@ -128,7 +131,7 @@ export default function PastEventsPage() {
         for (const file of newImages) {
           const formData = new FormData();
           formData.append('file', file);
-          const uploadRes = await fetch('http://127.0.0.1:8000/api/upload', {
+          const uploadRes = await fetch(`${API_URL}/api/upload`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
             body: formData
@@ -145,7 +148,7 @@ export default function PastEventsPage() {
       if (newReport) {
         const formData = new FormData();
         formData.append('file', newReport);
-        const uploadRes = await fetch('http://127.0.0.1:8000/api/upload', {
+        const uploadRes = await fetch(`${API_URL}/api/upload`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
           body: formData
@@ -157,7 +160,7 @@ export default function PastEventsPage() {
       }
 
       // 3. Update event in backend
-      const response = await fetch(`http://127.0.0.1:8000/api/events/${editingEvent.id}`, {
+      const response = await fetch(`${API_URL}/api/events/${editingEvent.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -191,20 +194,34 @@ export default function PastEventsPage() {
       <Sidebar />
 
       <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto p-6 lg:p-8">
-          <div className="mb-12 flex items-center gap-4">
+        {/* Sticky Mobile Header */}
+        <div className="sticky top-0 z-40 lg:hidden flex items-center justify-between p-4 bg-[#0a0d1f]/80 backdrop-blur-xl border-b border-white/10">
+          <div className="flex items-center gap-3">
             <button 
               onClick={() => window.dispatchEvent(new CustomEvent('toggle-mobile-menu'))}
-              className="lg:hidden p-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white transition-all"
+              className="p-2 rounded-lg bg-white/5 border border-white/10 text-gray-400"
             >
               <Menu className="w-6 h-6" />
             </button>
+            <span className="text-white font-semibold">Past Events</span>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto p-6 lg:p-8">
+          <div className="mb-12 hidden lg:flex items-center gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
                 Past Events
               </h1>
               <p className="text-gray-400">Memories from our previous campus gatherings</p>
             </div>
+          </div>
+
+          <div className="mb-12 lg:hidden">
+            <h1 className="text-3xl font-bold mb-2 text-white">
+              Past Events
+            </h1>
+            <p className="text-sm text-gray-400">Our previous campus gatherings</p>
           </div>
 
           {loading ? (
