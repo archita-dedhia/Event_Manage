@@ -85,7 +85,7 @@ export default function SignUpPage() {
     logout();
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render cold start
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
@@ -94,16 +94,15 @@ export default function SignUpPage() {
         method: 'POST',
         signal: controller.signal,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json', 
         },
         body: JSON.stringify({
           email: email,
           password: password,
           full_name: fullName,
+          user_type: userType,
           moodle_id: moodleId,
           department: department,
-          // Backend will enforce that public signups are students only
-          user_type: 'student',
         }),
       });
 
@@ -121,7 +120,7 @@ export default function SignUpPage() {
           setFieldErrors(apiFieldErrors);
           setError('Please correct the highlighted errors.');
         } else {
-          setError(data.detail || 'Sign up failed. Please try again.');
+          setError(data.detail || 'Registration failed. Please try again.');
         }
         return;
       }
@@ -136,13 +135,17 @@ export default function SignUpPage() {
       setPassword('');
       setConfirmPassword('');
 
-      // Redirect after 1 second
+      // Redirect after 2 seconds
       setTimeout(() => {
         navigate('/login');
-      }, 1500);
+      }, 2000);
     } catch (err) {
-      setError('Connection error. Make sure the backend server is running on port 8000.');
-      console.error('Sign up error:', err);
+      if (err.name === 'AbortError') {
+        setError('Request timed out (60s). The backend is taking too long to respond (this might be due to a cold start on Render).');
+      } else {
+        setError('Connection error. Please check if the backend server is running.');
+      }
+      console.error('Registration error:', err);
     } finally {
       setLoading(false);
     }

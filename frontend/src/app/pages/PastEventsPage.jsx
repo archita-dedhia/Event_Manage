@@ -115,7 +115,7 @@ export default function PastEventsPage() {
     setLoading(true);
     setFetchError(null);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render cold start
 
     try {
       const token = localStorage.getItem('token');
@@ -146,7 +146,7 @@ export default function PastEventsPage() {
       setEvents(sorted);
     } catch (err) {
       clearTimeout(timeoutId);
-      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
+      const msg = err.name === 'AbortError' ? 'Request timed out (60s). Backend is taking too long to respond (this might be due to a cold start on Render).' : err.message;
       setFetchError(msg);
     } finally {
       setLoading(false);

@@ -41,7 +41,7 @@ export default function ProfilePage() {
     setSuccess('');
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render cold start
 
     try {
       const token = localStorage.getItem('token');

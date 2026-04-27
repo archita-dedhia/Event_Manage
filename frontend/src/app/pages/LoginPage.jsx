@@ -30,7 +30,7 @@ export default function LoginPage() {
     setLoading(true);
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout for remote DB
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for Render cold start
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
@@ -63,7 +63,11 @@ export default function LoginPage() {
         // Redirect will be handled by useEffect
       }
     } catch (err) {
-      setError('Connection error. Make sure the backend server is running on port 8000.');
+      if (err.name === 'AbortError') {
+        setError('Request timed out (60s). The backend is taking too long to respond (this might be due to a cold start on Render).');
+      } else {
+        setError('Connection error. Please check if the backend server is running.');
+      }
       console.error('Login error:', err);
     } finally {
       setLoading(false);
