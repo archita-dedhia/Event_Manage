@@ -112,7 +112,7 @@ export default function StudentDashboard() {
   const fetchEventsAndBookings = async () => {
     setLoading(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render cold start
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // Increased to 20s for remote DB
 
     try {
       const token = localStorage.getItem('token');
@@ -160,7 +160,7 @@ export default function StudentDashboard() {
     } catch (err) {
       clearTimeout(timeoutId);
       console.error('Error fetching dashboard data:', err);
-      const msg = err.name === 'AbortError' ? 'Request timed out (60s). Backend is taking too long to respond (this might be due to a cold start on Render).' : err.message;
+      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
       alert('STUDENT DASHBOARD ERROR: ' + msg);
     } finally {
       setLoading(false);

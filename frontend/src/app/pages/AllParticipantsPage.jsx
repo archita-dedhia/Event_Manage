@@ -40,7 +40,7 @@ export default function AllParticipantsPage() {
   const fetchParticipants = async () => {
     setLoading(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render cold start
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
       const token = localStorage.getItem('token');
@@ -66,7 +66,7 @@ export default function AllParticipantsPage() {
     } catch (err) {
       clearTimeout(timeoutId);
       console.error('Error fetching participants:', err);
-      const msg = err.name === 'AbortError' ? 'Request timed out (60s). Backend is taking too long to respond (this might be due to a cold start on Render).' : err.message;
+      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
       alert('PARTICIPANTS PAGE ERROR: ' + msg);
     } finally {
       setLoading(false);

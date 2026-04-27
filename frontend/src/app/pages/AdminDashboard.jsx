@@ -239,7 +239,7 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     setLoading(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for Render cold start
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
       const token = localStorage.getItem('token');
@@ -284,7 +284,7 @@ export default function AdminDashboard() {
     } catch (err) {
       clearTimeout(timeoutId);
       console.error('Error fetching admin data:', err);
-      const msg = err.name === 'AbortError' ? 'Request timed out (60s). Backend is taking too long to respond (this might be due to a cold start on Render).' : err.message;
+      const msg = err.name === 'AbortError' ? 'Request timed out. Backend is not responding.' : err.message;
       alert('ADMIN DASHBOARD ERROR: ' + msg);
     } finally {
       setLoading(false);

@@ -64,7 +64,7 @@ export default function LandingPage() {
     setLoading(true);
     setFetchError(null);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // Increased to 60s for Render cold start
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // Increased to 20s for remote DB
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
     try {
@@ -88,7 +88,7 @@ export default function LandingPage() {
     } catch (err) {
       clearTimeout(timeoutId);
       console.error('Detailed fetch error:', err);
-      const msg = err.name === 'AbortError' ? 'Request timed out (60s). The backend is taking too long to respond (this might be due to a cold start on Render).' : err.message;
+      const msg = err.name === 'AbortError' ? 'Request timed out (20s). The backend is taking too long to respond.' : err.message;
       setFetchError(msg);
     } finally {
       setLoading(false);
