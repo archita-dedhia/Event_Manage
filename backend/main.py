@@ -88,7 +88,10 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Temporarily allow all for local debugging
+    allow_origins=[
+        "http://localhost:5173",
+        "https://event-manage-alpha.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -58,6 +58,7 @@ class Event(Base):
     attendees = Column(Integer, default=0)
     image = Column(Text, nullable=True)  # Image identifier/URL
     pdf_url = Column(Text, nullable=True)  # PDF identifier/URL
+    report_pdf_url = Column(Text, nullable=True)  # Added missing field
     website_url = Column(Text, nullable=True) #Optional website link
     is_rsvp_based = Column(Boolean, default=False)
     rsvp_url = Column(Text, nullable=True)

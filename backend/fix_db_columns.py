@@ -12,6 +12,16 @@ def fix_columns():
             conn.execute(text("ALTER TABLE events MODIFY rsvp_url TEXT"))
             conn.execute(text("ALTER TABLE events MODIFY website_url TEXT"))
             
+            # Add missing columns if they don't exist
+            try:
+                conn.execute(text("ALTER TABLE events ADD COLUMN report_pdf_url TEXT"))
+                print("Added report_pdf_url column")
+            except Exception as e:
+                if "Duplicate column name" in str(e):
+                    print("report_pdf_url column already exists")
+                else:
+                    print(f"Note: {e}")
+            
             # Fix event_images table
             conn.execute(text("ALTER TABLE event_images MODIFY url TEXT"))
             
