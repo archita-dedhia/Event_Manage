@@ -363,6 +363,7 @@ def create_event(payload: schemas.EventCreate, current_user: models.User = Depen
         capacity=payload.capacity,
         image=payload.image,
         pdf_url=payload.pdf_url,
+        report_pdf_url=payload.report_pdf_url,
         website_url=payload.website_url,
         is_rsvp_based=payload.is_rsvp_based or False,
         rsvp_url=payload.rsvp_url
@@ -633,11 +634,22 @@ def generate_event_report(request: Request, event_id: int, current_user: models.
     doc.build(elements)
     buffer.seek(0)
     
-    filename = f"Report_{event.title.replace(' ', '_')}.pdf"
-    return StreamingResponse(
-        buffer, 
+    # Sanitize filename: remove all problematic characters, keep it very simple for headers
+    import re
+    safe_title = re.sub(r'[^a-zA-Z0-9_\-]', '_', event.title)
+    if not safe_title:
+        safe_title = f"Event_{event.id}"
+    filename = f"Report_{safe_title}.pdf"
+    
+    # Use Response instead of StreamingResponse for better header control
+    from fastapi import Response
+    return Response(
+        content=buffer.getvalue(),
         media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition"
+        }
     )
 
 
@@ -725,6 +737,8 @@ def update_event(event_id: int, payload: schemas.EventUpdate, current_user: mode
         event.image = payload.image
     if payload.pdf_url:
         event.pdf_url = payload.pdf_url
+    if payload.report_pdf_url:
+        event.report_pdf_url = payload.report_pdf_url
     if payload.website_url:
         event.website_url = payload.website_url
     if payload.is_rsvp_based is not None:

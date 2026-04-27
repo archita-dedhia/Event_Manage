@@ -92,6 +92,7 @@ class EventCreate(BaseModel):
     capacity: int = Field(..., ge=1)
     image: Optional[str] = None
     pdf_url: Optional[str] = None
+    report_pdf_url: Optional[str] = None
     website_url: Optional[str] = None
     is_rsvp_based: Optional[bool] = False
     rsvp_url: Optional[str] = None
@@ -111,6 +112,7 @@ class EventUpdate(BaseModel):
     capacity: Optional[int] = None
     image: Optional[str] = None
     pdf_url: Optional[str] = None
+    report_pdf_url: Optional[str] = None
     website_url: Optional[str] = None
     is_rsvp_based: Optional[bool] = None
     rsvp_url: Optional[str] = None
@@ -143,6 +145,7 @@ class EventOut(BaseModel):
     attendees: int
     image: Optional[str]
     pdf_url: Optional[str]
+    report_pdf_url: Optional[str] = None
     website_url: Optional[str] = None
     is_rsvp_based: bool
     rsvp_url: Optional[str] = None

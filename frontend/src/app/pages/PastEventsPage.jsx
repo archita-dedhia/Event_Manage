@@ -205,8 +205,7 @@ export default function PastEventsPage() {
         body: JSON.stringify({
           images: updatedImages.map(img => typeof img === 'string' ? img : img.url),
           pdf_url: updatedReportUrl,
-          is_rsvp_based: editingEvent.is_rsvp_based,
-          rsvp_url: editingEvent.rsvp_url
+          
         })
       });
 
@@ -637,40 +636,7 @@ export default function PastEventsPage() {
                 </div>
               </div>
 
-              {/* RSVP Settings Section */}
-              <div className="space-y-4">
-                <label className="flex items-center gap-2 text-sm font-medium text-blue-400 uppercase tracking-widest">
-                  <Users className="w-4 h-4" />
-                  RSVP Settings
-                </label>
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
-                  <input
-                    type="checkbox"
-                    id="is_rsvp_based"
-                    checked={editingEvent.is_rsvp_based || false}
-                    onChange={(e) => setEditingEvent({ ...editingEvent, is_rsvp_based: e.target.checked })}
-                    className="w-5 h-5 rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500/50"
-                  />
-                  <label htmlFor="is_rsvp_based" className="text-white text-sm font-medium cursor-pointer">
-                    Enable RSVP / External Booking
-                  </label>
-                </div>
-              </div>
-
-              {editingEvent.is_rsvp_based && (
-                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="flex items-center gap-2 text-sm font-medium text-blue-400 uppercase tracking-widest">
-                    RSVP / Booking URL
-                  </label>
-                  <input
-                    type="url"
-                    value={editingEvent.rsvp_url || ''}
-                    onChange={(e) => setEditingEvent({ ...editingEvent, rsvp_url: e.target.value })}
-                    placeholder="https://forms.gle/..."
-                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-blue-500 outline-none transition-all"
-                  />
-                </div>
-              )}
+              
 
               <div className="flex gap-4 pt-4">
                 <button

@@ -304,6 +304,20 @@ export default function AdminDashboard() {
       return;
     }
 
+    // Time Validation
+    if (formData.time && formData.end_time) {
+      const startTime = formData.time;
+      const endTime = formData.end_time;
+      
+      // If same day or not multi-day, check time
+      if (!isMultiDay || (formData.date === formData.end_date)) {
+        if (endTime <= startTime) {
+          alert('End time must be after start time');
+          return;
+        }
+      }
+    }
+
     setIsSubmitting(true);
     
     try {
@@ -393,6 +407,20 @@ export default function AdminDashboard() {
       return;
     }
 
+    // Time Validation
+    if (formData.time && formData.end_time) {
+      const startTime = formData.time;
+      const endTime = formData.end_time;
+      
+      // If same day or not multi-day, check time
+      if (!isMultiDay || (formData.date === formData.end_date)) {
+        if (endTime <= startTime) {
+          alert('End time must be after start time');
+          return;
+        }
+      }
+    }
+
     setIsSubmitting(true);
     
     try {
@@ -469,7 +497,10 @@ export default function AdminDashboard() {
     setFormData({
       title: '',
       date: '',
+      end_date: '',
       time: '',
+      end_time: '',
+      duration: '',
       location: '',
       description: '',
       category_id: categories[0]?.id || '',
@@ -701,7 +732,7 @@ export default function AdminDashboard() {
                     <label className="block text-sm mb-2 text-gray-300">Event Title</label>
                     <input
                       type="text"
-                      value={formData.title}
+                      value={formData.title || ''}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                       placeholder="Enter event title"
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
@@ -712,7 +743,7 @@ export default function AdminDashboard() {
                   <div className="space-y-2">
                     <label className="block text-sm mb-2 text-gray-300">Category</label>
                     <select
-                      value={formData.category_id}
+                      value={formData.category_id || ''}
                       onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all appearance-none"
                     >
@@ -726,7 +757,7 @@ export default function AdminDashboard() {
                     <label className="block text-sm mb-2 text-gray-300">Start Date</label>
                     <input
                       type="date"
-                      value={formData.date}
+                      value={formData.date || ''}
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                       required
@@ -756,7 +787,7 @@ export default function AdminDashboard() {
                       <label className="block text-sm mb-2 text-gray-300">End Date</label>
                       <input
                         type="date"
-                        value={formData.end_date}
+                        value={formData.end_date || ''}
                         min={formData.date}
                         onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                         className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
@@ -769,7 +800,7 @@ export default function AdminDashboard() {
                     <label className="block text-sm mb-2 text-gray-300">Start Time</label>
                     <input
                       type="time"
-                      value={formData.time}
+                      value={formData.time || ''}
                       onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                       required
@@ -780,7 +811,7 @@ export default function AdminDashboard() {
                     <label className="block text-sm mb-2 text-gray-300">End Time</label>
                     <input
                       type="time"
-                      value={formData.end_time}
+                      value={formData.end_time || ''}
                       onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
                     />
@@ -846,7 +877,7 @@ export default function AdminDashboard() {
                     <label className="block text-sm mb-2 text-gray-300">Capacity</label>
                     <input
                       type="number"
-                      value={formData.capacity}
+                      value={formData.capacity || ''}
                       onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
                       placeholder="Max attendees"
                       className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
@@ -858,7 +889,7 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block text-sm mb-2 text-gray-300">Description</label>
                   <textarea
-                    value={formData.description}
+                    value={formData.description || ''}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Enter event description"
                     rows={4}
@@ -876,7 +907,7 @@ export default function AdminDashboard() {
                   <label className="block text-sm mb-2 text-gray-300">Website URL (Optional)</label>
                   <input
                     type="url"
-                    value={formData.website_url}
+                    value={formData.website_url || ''}
                     onChange={(e) => setFormData({ ...formData, website_url: e.target.value })}
                     placeholder="https://example.com"
                     className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
@@ -991,15 +1022,33 @@ export default function AdminDashboard() {
                       <div className="text-center">
                         <FileText className={`w-12 h-12 mx-auto mb-3 transition-colors ${pdfFile ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'}`} />
                         <div className="text-base text-white font-medium mb-1">
-                          {pdfFile ? pdfFile.name : 'Upload PDF Report'}
+                          {pdfFile ? pdfFile.name : 'Upload Event Instructions (PDF)'}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {pdfFile ? `${(pdfFile.size / (1024 * 1024)).toFixed(2)} MB` : 'PDF up to 25MB'}
+                          {pdfFile ? `${(pdfFile.size / (1024 * 1024)).toFixed(2)} MB` : 'Optional attachment up to 25MB'}
                         </div>
-                        {editingEvent && formData.pdf_url && !pdfFile && (
-                          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-blue-400 bg-blue-500/10 py-1.5 px-3 rounded-full border border-blue-500/20">
-                            <Globe className="w-3 h-3" />
-                            <span>Current PDF: {formData.pdf_url.split('/').pop().slice(0, 20)}...</span>
+                        {(pdfFile || (editingEvent && formData.pdf_url)) && (
+                          <div className="mt-4 flex items-center justify-center gap-3">
+                            {editingEvent && formData.pdf_url && !pdfFile && (
+                              <div className="flex items-center gap-2 text-xs text-blue-400 bg-blue-500/10 py-1.5 px-3 rounded-full border border-blue-500/20">
+                                <Globe className="w-3 h-3" />
+                                <span>Current: {formData.pdf_url.split('/').pop().slice(0, 15)}...</span>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPdfFile(null);
+                                if (editingEvent) {
+                                  setFormData({ ...formData, pdf_url: '' });
+                                }
+                              }}
+                              className="relative z-20 flex items-center gap-2 text-xs text-red-400 bg-red-500/10 hover:bg-red-500/20 py-1.5 px-3 rounded-full border border-red-500/20 transition-all"
+                            >
+                              <X className="w-3 h-3" />
+                              Remove PDF
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1026,7 +1075,7 @@ export default function AdminDashboard() {
                       <label className="block text-xs mb-2 text-purple-400 uppercase tracking-wider font-semibold">RSVP Link</label>
                       <input
                         type="url"
-                        value={formData.rsvp_url}
+                        value={formData.rsvp_url || ''}
                         onChange={(e) => setFormData({ ...formData, rsvp_url: e.target.value })}
                         placeholder="https://docs.google.com/forms/..."
                         className="w-full px-4 py-3 rounded-xl bg-white/10 border border-purple-500/30 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
@@ -1037,14 +1086,14 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10 space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-purple-400" />
-                    <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Report Management</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileText className="w-4 h-4 text-purple-400" />
+                      <span className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Attachment Management</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 italic">
+                      Upload event instructions or brochures here. Post-event 1-page reports and geo-tagged images can be added in the <span className="text-blue-400 font-medium">Past Events</span> section after completion.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-gray-500 italic">
-                    If no PDF report is uploaded, it will be marked as <span className="text-red-400 font-medium">Pending</span> in the dashboard. Admins should upload 2-3 images for the report.
-                  </p>
-                </div>
 
                 <div className="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10 space-y-4">
                   <div className="flex items-center gap-2 mb-2">
