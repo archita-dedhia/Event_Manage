@@ -44,6 +44,7 @@ import models
 import schemas
 import auth_utils
 import cloudinary_utils
+from fix_db_columns import fix_columns
 from fastapi.security import OAuth2PasswordBearer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/login")
@@ -90,8 +91,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://127.0.0.1:5173",
         "https://event-manage-alpha.vercel.app",
     ],
+    allow_origin_regex="https://event-manage-.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -104,8 +107,14 @@ models.Base.metadata.create_all(bind=engine)
 
 @app.on_event("startup")
 async def startup_event():
-    """Check database connection on startup."""
+    """Check database connection and run migrations on startup."""
     print("\n" + "="*50)
+    print("Running database migrations/fixes...")
+    try:
+        fix_columns()
+    except Exception as e:
+        print(f"Migration error: {e}")
+
     print("Checking database connection...")
     try:
         # Use database.engine instead of assuming it's imported as engine
@@ -845,7 +854,7 @@ def get_admin_analytics(current_user: models.User = Depends(get_current_user), d
     
     events = db.query(models.Event).filter(models.Event.organizer_id == current_user.id).all()
     total_events = len(events)
-    total_attendees = sum(event.attendees for event in events)
+    total_attendees = sum((event.attendees or 0) for event in events)
     average_attendance = total_attendees / total_events if total_events > 0 else 0
     
     return {

@@ -22,6 +22,13 @@ def fix_columns():
                 else:
                     print(f"Note: {e}")
             
+            try:
+                conn.execute(text("UPDATE events SET attendees = 0 WHERE attendees IS NULL"))
+                conn.commit()
+                print("Fixed NULL attendees")
+            except Exception as e:
+                print(f"Note: {e}")
+            
             # Fix event_images table
             conn.execute(text("ALTER TABLE event_images MODIFY url TEXT"))
             
