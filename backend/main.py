@@ -5,12 +5,23 @@ import urllib.parse
 import requests
 from dotenv import load_dotenv
 
+try:
+    from pypdf import PdfReader
+except ImportError:
+    try:
+        from PyPDF2 import PdfReader
+    except ImportError:
+        PdfReader = None
+
 # Load environment variables at the very beginning
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(env_path):
-    load_dotenv(env_path)
+    load_dotenv(env_path, override=True)
 else:
-    load_dotenv()
+    load_dotenv(override=True)
+
+from config import get_database_url
+print(f"DATABASE_URL: {get_database_url()}")
 
 from datetime import datetime, timezone, timedelta
 from fastapi import Depends, FastAPI, HTTPException, status, File, UploadFile, Request
@@ -27,6 +38,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.units import inch
 
+from sqlalchemy import text
 from database import get_db
 import models
 import schemas
@@ -54,6 +66,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
+def _fix_cloudinary_pdf_url(url: str) -> str:
+    """Cloudinary stores PDFs under /image/upload/ — swap to /raw/upload/ to get actual PDF bytes."""
+    if not url or not isinstance(url, str):
+        return url
+    if "cloudinary.com" in url and "/image/upload/" in url:
+        return url.replace("/image/upload/", "/raw/upload/")
+    return url
+
+
 def get_ist_time():
     # UTC + 5:30
     ist_offset = timezone(timedelta(hours=5, minutes=30))
@@ -67,20 +88,36 @@ app = FastAPI(
 )
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://event-manage-alpha.vercel.app",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=["*"],  # Temporarily allow all for local debugging
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Initialize database tables
+from database import engine
+models.Base.metadata.create_all(bind=engine)
+
+@app.on_event("startup")
+async def startup_event():
+    """Check database connection on startup."""
+    print("\n" + "="*50)
+    print("Checking database connection...")
+    try:
+        # Use database.engine instead of assuming it's imported as engine
+        from database import engine
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        print("✅ Database connection successful!")
+    except Exception as e:
+        print("❌ DATABASE CONNECTION FAILED!")
+        print(f"Error: {str(e)}")
+        print("\nPossible solutions:")
+        print("1. Ensure your MySQL service is RUNNING (XAMPP, MySQL Workbench, etc.)")
+        print("2. Check if the database 'saas_app' exists in your MySQL server")
+        print("3. Verify your credentials in backend/.env")
+    print("="*50 + "\n")
 
 # Create uploads directory if it doesn't exist
 UPLOAD_DIR = "uploads"
@@ -456,7 +493,8 @@ def generate_event_report(request: Request, event_id: int, current_user: models.
 
     if all_images:
         image_elements = []
-        for img_url in all_images[:4]: # Limit to 4 images for a one-page report
+        # Limit to 10 images max
+        for img_url in all_images[:10]:
             img_data = get_image_data(img_url)
             if img_data:
                 try:
@@ -502,8 +540,61 @@ def generate_event_report(request: Request, event_id: int, current_user: models.
             elements.append(image_grid)
     else:
         elements.append(Paragraph("<i>No images available for this event.</i>", styles['Normal']))
-    
+
     elements.append(Spacer(1, 18))
+
+    # PDF Section
+    if event.pdf_url:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph("<b>ATTACHED DOCUMENT:</b>", styles['Heading3']))
+        
+        # Add clickable link
+        link_color = colors.blue
+        link_text = f"<font color={link_color}><u>Click here to open original PDF document</u></font>"
+        elements.append(Paragraph(f"<a href='{event.pdf_url}'>{link_text}</a>", styles['Normal']))
+        elements.append(Spacer(1, 12))
+
+        if PdfReader:
+            try:
+                pdf_url = _fix_cloudinary_pdf_url(event.pdf_url)
+                
+                print(f"Attempting to fetch PDF from: {pdf_url}")
+                pdf_response = requests.get(pdf_url, timeout=10)
+                print(f"PDF response status: {pdf_response.status_code}")
+                
+                if pdf_response.status_code == 200:
+                    reader = PdfReader(io.BytesIO(pdf_response.content))
+                    if reader.pages:
+                        extracted_content = False
+                        for i, page in enumerate(reader.pages):
+                            try:
+                                text = page.extract_text()
+                                if text and text.strip():
+                                    elements.append(Paragraph(f"<b>Page {i+1}:</b>", styles['Normal']))
+                                    # Split text by newlines and add each as a paragraph to maintain structure
+                                    for line in text.split('\n'):
+                                        if line.strip():
+                                            elements.append(Paragraph(line, styles['Normal']))
+                                    elements.append(Spacer(1, 6))
+                                    extracted_content = True
+                            except Exception as e:
+                                print(f"Error extracting page {i+1}: {e}")
+                                continue
+                        
+                        if not extracted_content:
+                            elements.append(Paragraph(f"<i>Content could not be extracted automatically. Please use the link above to view the document.</i>", styles['Normal']))
+                    else:
+                        elements.append(Paragraph(f"<i>PDF document appears to be empty or corrupted. Link: {event.pdf_url}</i>", styles['Normal']))
+                else:
+                    elements.append(Paragraph(f"<i>Unable to fetch PDF for extraction (Status: {pdf_response.status_code}). Please use the link above.</i>", styles['Normal']))
+            except Exception as e:
+                elements.append(Paragraph(f"<i>Error during text extraction: {str(e)}. Please use the link above to view the full document.</i>", styles['Normal']))
+        else:
+            elements.append(Paragraph(f"<i>Document text extraction is unavailable. Please use the link above.</i>", styles['Normal']))
+        elements.append(Spacer(1, 18))
+    else:
+        elements.append(Paragraph("<i>No document attached to this event.</i>", styles['Normal']))
+        elements.append(Spacer(1, 18))
 
     # Registered Students Table
     elements.append(Paragraph(f"<b>REGISTERED STUDENTS ({len(participants)}):</b>", styles['Heading3']))

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
-import { Calendar, ChevronRight, ArrowLeft, Download, Eye, MapPin, Users, X, Activity, FileText, Globe, Sparkles, ChevronLeft, Search, Edit2, Upload, Image as ImageIcon, Menu } from 'lucide-react';
+import { Calendar, ChevronRight, ArrowLeft, Download, Eye, MapPin, Users, X, Activity, FileText, Globe, Sparkles, ChevronLeft, Search, Edit2, Upload, Image as ImageIcon, Menu, Plus } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback.jsx';
 import { eventImages } from '../data/eventImages.js';
 import FullScreenSlideshow from '../components/figma/FullScreenSlideshow.jsx';
 import Sidebar from '../components/Sidebar.jsx';
 
 export default function PastEventsPage() {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
@@ -16,9 +17,45 @@ export default function PastEventsPage() {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [editingEvent, setEditingEvent] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newImages, setNewImages] = useState([]);
+  const [newImages, setNewImages] = useState([]); // Array of { file, preview }
   const [newReport, setNewReport] = useState(null);
   const user = JSON.parse(localStorage.getItem('user')) || null;
+
+  const handleAddImage = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    const existingCount = (editingEvent?.images?.length || 0);
+    const newCount = newImages.length;
+    const remainingSlots = 10 - (existingCount + newCount);
+    
+    if (remainingSlots <= 0) {
+      alert('Maximum 10 images allowed');
+      return;
+    }
+
+    const filesToAdd = files.slice(0, remainingSlots);
+    const addedImages = filesToAdd.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setNewImages(prev => [...prev, ...addedImages]);
+    
+    if (files.length > remainingSlots) {
+      alert(`Only added ${remainingSlots} images. Maximum 10 allowed.`);
+    }
+  };
+
+  const handleRemoveNewImage = (index) => {
+    setNewImages(prev => {
+      const removed = prev[index];
+      if (removed && removed.preview) {
+        URL.revokeObjectURL(removed.preview);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  };
 
   const containsCross = (text) => {
     if (!text) return false;
@@ -81,7 +118,7 @@ export default function PastEventsPage() {
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_URL}/api/events`, { signal: controller.signal });
       
       clearTimeout(timeoutId);
@@ -123,14 +160,13 @@ export default function PastEventsPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
       
       // 1. Upload new images if any
       let updatedImages = [...(editingEvent.images || [])];
       if (newImages.length > 0) {
-        for (const file of newImages) {
+        for (const item of newImages) {
           const formData = new FormData();
-          formData.append('file', file);
+          formData.append('file', item.file);
           const uploadRes = await fetch(`${API_URL}/api/upload`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` },
@@ -138,7 +174,7 @@ export default function PastEventsPage() {
           });
           if (uploadRes.ok) {
             const uploadData = await uploadRes.json();
-            updatedImages.push(uploadData.url);
+            updatedImages.push({ url: uploadData.url }); // Match the EventImageOut schema
           }
         }
       }
@@ -168,7 +204,9 @@ export default function PastEventsPage() {
         },
         body: JSON.stringify({
           images: updatedImages.map(img => typeof img === 'string' ? img : img.url),
-          pdf_url: updatedReportUrl
+          pdf_url: updatedReportUrl,
+          is_rsvp_based: editingEvent.is_rsvp_based,
+          rsvp_url: editingEvent.rsvp_url
         })
       });
 
@@ -481,36 +519,79 @@ export default function PastEventsPage() {
           ></div>
           <div className="relative w-full max-w-2xl rounded-3xl bg-[#0a0d1f] border border-white/10 p-8 shadow-2xl">
             <h2 className="text-2xl text-white font-bold mb-6">Update Past Event</h2>
-            <form onSubmit={handleUpdatePastEvent} className="space-y-6">
+            <form onSubmit={handleUpdatePastEvent} className="space-y-8">
+              {/* Images Section */}
               <div className="space-y-4">
-                <label className="flex items-center gap-2 text-sm font-medium text-purple-400 uppercase tracking-wider">
+                <label className="flex items-center gap-2 text-sm font-medium text-purple-400 uppercase tracking-widest">
                   <ImageIcon className="w-4 h-4" />
-                  Add Event Images (Geo-tagged)
+                  Event Photos (Geo-tagged)
                 </label>
-                <div className="relative group">
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={(e) => setNewImages(Array.from(e.target.files))}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  />
-                  <div className="border-2 border-dashed border-white/10 rounded-2xl p-10 text-center group-hover:border-purple-500/50 group-hover:bg-white/[0.02] transition-all">
-                    <Upload className="w-10 h-10 text-gray-500 mx-auto mb-4 group-hover:text-purple-400 group-hover:scale-110 transition-all" />
-                    <p className="text-gray-400 group-hover:text-white transition-colors">
-                      {newImages.length > 0 
-                        ? `${newImages.length} images selected` 
-                        : "Drop images here or click to browse"}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">Supports JPG, PNG (Max 5MB per image)</p>
-                  </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                  {/* Existing Images */}
+                  {editingEvent.images?.map((img, idx) => (
+                    <div key={`existing-${idx}`} className="aspect-square rounded-2xl overflow-hidden border border-white/10 relative group">
+                      <ImageWithFallback src={img.url} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            const updated = editingEvent.images.filter((_, i) => i !== idx);
+                            setEditingEvent({ ...editingEvent, images: updated });
+                          }}
+                          className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all hover:scale-110"
+                          title="Remove"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* New Image Previews */}
+                  {newImages.map((item, idx) => (
+                    <div key={`new-${idx}`} className="aspect-square rounded-2xl overflow-hidden border-2 border-dashed border-purple-500/50 relative group">
+                      <img src={item.preview} className="w-full h-full object-cover" alt="New Preview" />
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                        <button 
+                          type="button"
+                          onClick={() => handleRemoveNewImage(idx)}
+                          className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all hover:scale-110"
+                          title="Remove"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="absolute top-2 left-2">
+                        <span className="px-2 py-0.5 bg-blue-500 text-[9px] font-bold text-white rounded-full uppercase tracking-wider shadow-lg">New</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add Button */}
+                  {(editingEvent.images?.length || 0) + newImages.length < 10 && (
+                    <label className="aspect-square rounded-2xl border-2 border-dashed border-white/10 hover:border-purple-500/50 hover:bg-purple-500/5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-95">
+                      <div className="p-3 rounded-full bg-white/5 group-hover:bg-purple-500/10 transition-colors">
+                        <Plus className="w-6 h-6 text-gray-400 group-hover:text-purple-400" />
+                      </div>
+                      <span className="text-xs text-gray-500 mt-2 font-medium group-hover:text-purple-400">Add Photos</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleAddImage}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 
+              {/* PDF Section */}
               <div className="space-y-4">
-                <label className="flex items-center gap-2 text-sm font-medium text-blue-400 uppercase tracking-wider">
+                <label className="flex items-center gap-2 text-sm font-medium text-blue-400 uppercase tracking-widest">
                   <FileText className="w-4 h-4" />
-                  Upload 1-Page Event Report (PDF)
+                  1-Page Event Report (PDF)
                 </label>
                 <div className="relative group">
                   <input
@@ -519,15 +600,77 @@ export default function PastEventsPage() {
                     onChange={(e) => setNewReport(e.target.files[0])}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  <div className="border-2 border-dashed border-white/10 rounded-2xl p-10 text-center group-hover:border-blue-500/50 group-hover:bg-white/[0.02] transition-all">
-                    <FileText className="w-10 h-10 text-gray-500 mx-auto mb-4 group-hover:text-blue-400 group-hover:scale-110 transition-all" />
-                    <p className="text-gray-400 group-hover:text-white transition-colors">
-                      {newReport ? newReport.name : "Select or drop PDF report"}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">One-page PDF summary of the event</p>
-                  </div>
+                  {newReport || editingEvent.pdf_url ? (
+                    <div className="w-full p-10 rounded-3xl bg-white/5 border border-white/10 border-dashed group-hover:border-blue-500/50 transition-all flex flex-col items-center justify-center text-center gap-6">
+                      <div className="w-20 h-20 rounded-2xl bg-blue-500/20 flex items-center justify-center shadow-lg shadow-blue-500/10 group-hover:scale-110 transition-transform">
+                        <FileText className="w-10 h-10 text-blue-400" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-white font-bold text-xl truncate mb-2">
+                          {newReport ? newReport.name : (editingEvent.pdf_url?.split('/').pop().split('?')[0])}
+                        </div>
+                        <div className="text-sm text-gray-500 uppercase tracking-widest font-medium">
+                          {newReport ? `${(newReport.size / (1024 * 1024)).toFixed(2)} MB` : '0.04 MB'} • PDF Document
+                        </div>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setNewReport(null);
+                          if (!newReport) setEditingEvent({ ...editingEvent, pdf_url: null });
+                        }}
+                        className="px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-all"
+                      >
+                        Remove Report
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-full p-10 rounded-3xl bg-white/5 border border-white/10 border-dashed group-hover:border-blue-500/50 transition-all flex flex-col items-center justify-center text-center gap-4">
+                      <Upload className="w-10 h-10 text-gray-600 group-hover:text-blue-400 group-hover:scale-110 transition-all" />
+                      <div>
+                        <p className="text-gray-400 group-hover:text-white font-medium">Upload PDF Report</p>
+                        <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider">Drag and drop or click to browse</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+
+              {/* RSVP Settings Section */}
+              <div className="space-y-4">
+                <label className="flex items-center gap-2 text-sm font-medium text-blue-400 uppercase tracking-widest">
+                  <Users className="w-4 h-4" />
+                  RSVP Settings
+                </label>
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-white/10">
+                  <input
+                    type="checkbox"
+                    id="is_rsvp_based"
+                    checked={editingEvent.is_rsvp_based || false}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, is_rsvp_based: e.target.checked })}
+                    className="w-5 h-5 rounded border-white/10 bg-white/5 text-blue-500 focus:ring-blue-500/50"
+                  />
+                  <label htmlFor="is_rsvp_based" className="text-white text-sm font-medium cursor-pointer">
+                    Enable RSVP / External Booking
+                  </label>
+                </div>
+              </div>
+
+              {editingEvent.is_rsvp_based && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <label className="flex items-center gap-2 text-sm font-medium text-blue-400 uppercase tracking-widest">
+                    RSVP / Booking URL
+                  </label>
+                  <input
+                    type="url"
+                    value={editingEvent.rsvp_url || ''}
+                    onChange={(e) => setEditingEvent({ ...editingEvent, rsvp_url: e.target.value })}
+                    placeholder="https://forms.gle/..."
+                    className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:border-blue-500 outline-none transition-all"
+                  />
+                </div>
+              )}
 
               <div className="flex gap-4 pt-4">
                 <button

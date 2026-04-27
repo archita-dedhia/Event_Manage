@@ -44,6 +44,9 @@ export default function AdminDashboard() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [imageFiles, setImageFiles] = useState([]);
+  const [newImages, setNewImages] = useState([]); // Array of { file, preview }
+  const [extraImages, setExtraImages] = useState([]);
+  const [imageError, setImageError] = useState('');
   const [pdfFile, setPdfFile] = useState(null);
   const [selectedEventParticipants, setSelectedEventParticipants] = useState(null);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
@@ -193,6 +196,46 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleAddImage = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    const remainingSlots = 10 - (extraImages.length + newImages.length);
+    if (remainingSlots <= 0) {
+      setImageError('Maximum 10 images allowed');
+      return;
+    }
+
+    const filesToAdd = files.slice(0, remainingSlots);
+    const addedImages = filesToAdd.map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setImageError('');
+    setNewImages(prev => [...prev, ...addedImages]);
+    
+    if (files.length > remainingSlots) {
+      setImageError(`Only added ${remainingSlots} images. Maximum 10 allowed.`);
+    }
+  };
+
+  const handleRemoveImage = (index) => {
+    setExtraImages(prev => prev.filter((_, i) => i !== index));
+    setImageError('');
+  };
+
+  const handleRemoveNewImage = (index) => {
+    setNewImages(prev => {
+      const removed = prev[index];
+      if (removed && removed.preview) {
+        URL.revokeObjectURL(removed.preview);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+    setImageError('');
+  };
+
   const fetchData = async () => {
     setLoading(true);
     const controller = new AbortController();
@@ -275,12 +318,15 @@ export default function AdminDashboard() {
       let pdfUrl = formData.pdf_url;
       let imageUrls = [];
 
-      if (imageFiles.length > 0) {
-        for (const file of imageFiles) {
-          const url = await handleFileUpload(file);
+      // Upload all images
+      if (newImages.length > 0) {
+        for (const item of newImages) {
+          const url = await handleFileUpload(item.file);
           if (url) imageUrls.push(url);
         }
-        imageUrl = imageUrls[0]; // Set first as main image
+        if (!imageUrl && imageUrls.length > 0) {
+          imageUrl = imageUrls[0]; // Set first as main image if none exists
+        }
       }
 
       if (pdfFile) {
@@ -359,14 +405,18 @@ export default function AdminDashboard() {
 
       let imageUrl = formData.image;
       let pdfUrl = formData.pdf_url;
-      let imageUrls = [];
+      let imageUrls = [...extraImages];
 
-      if (imageFiles.length > 0) {
-        for (const file of imageFiles) {
-          const url = await handleFileUpload(file);
+      // Upload new images
+      if (newImages.length > 0) {
+        for (const item of newImages) {
+          const url = await handleFileUpload(item.file);
           if (url) imageUrls.push(url);
         }
-        imageUrl = imageUrls[0]; // Set first as main image
+      }
+      
+      if (!imageUrl && imageUrls.length > 0) {
+        imageUrl = imageUrls[0];
       }
 
       if (pdfFile) {
@@ -390,7 +440,7 @@ export default function AdminDashboard() {
           website_url: formData.website_url,
           is_rsvp_based: formData.is_rsvp_based,
           rsvp_url: formData.rsvp_url,
-          images: imageUrls.length > 0 ? imageUrls : undefined
+          images: imageUrls
         }),
       });
 
@@ -431,6 +481,8 @@ export default function AdminDashboard() {
       rsvp_url: '',
     });
     setImageFiles([]);
+    setNewImages([]);
+    setExtraImages([]);
     setPdfFile(null);
     setShowCreateForm(false);
     setEditingEvent(null);
@@ -481,6 +533,8 @@ export default function AdminDashboard() {
       is_rsvp_based: event.is_rsvp_based || false,
       rsvp_url: event.rsvp_url || '',
     });
+    setExtraImages(event.images ? event.images.map(img => img.url) : []);
+    setNewImages([]);
     setIsMultiDay(!!event.end_date);
     setShowCreateForm(true);
   };
@@ -830,39 +884,124 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                  <div className="relative group">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={(e) => setImageFiles(Array.from(e.target.files))}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div className={`p-6 rounded-xl border-2 border-dashed transition-all ${imageFiles.length > 0 ? 'border-purple-500 bg-purple-500/5' : 'border-white/10 hover:border-purple-500/30'}`}>
-                      <div className="text-center">
-                        <ImageIcon className={`w-12 h-12 mx-auto mb-3 transition-colors ${imageFiles.length > 0 ? 'text-purple-400' : 'text-gray-400 group-hover:text-purple-400'}`} />
-                        <div className="text-sm text-gray-400 mb-1">
-                          {imageFiles.length > 0 ? `${imageFiles.length} images selected` : 'Upload Event Images (Slideshow)'}
-                        </div>
-                        <div className="text-xs text-gray-500">PNG, JPG up to 10MB (Multiple)</div>
-                      </div>
+                  {/* Unified Image Management */}
+                  <div className="md:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Event Images ({extraImages.length + newImages.length}/10)
+                      </label>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold">
+                        First image is default cover
+                      </span>
                     </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                      {/* Existing Cloudinary Images */}
+                      {extraImages.map((url, idx) => (
+                        <div key={`extra-${idx}`} className="relative group aspect-square">
+                          <img
+                            src={url}
+                            className={`w-full h-full object-cover rounded-xl border-2 ${formData.image === url ? 'border-purple-500 shadow-lg shadow-purple-500/20' : 'border-white/10'}`}
+                            alt="Event"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-center justify-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, image: url })}
+                              className={`p-2 rounded-full transition-all ${formData.image === url ? 'bg-purple-500 text-white scale-110' : 'bg-white/20 text-white hover:bg-purple-500 hover:scale-110'}`}
+                              title="Set as Cover"
+                            >
+                              <ImageIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleRemoveImage(idx);
+                                if (formData.image === url) {
+                                  setFormData({ ...formData, image: '' });
+                                }
+                              }}
+                              className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all hover:scale-110"
+                              title="Remove"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {formData.image === url && (
+                            <span className="absolute top-2 left-2 px-2 py-0.5 bg-purple-500 text-[9px] font-bold text-white rounded-full uppercase tracking-wider shadow-lg">Cover</span>
+                          )}
+                        </div>
+                      ))}
+
+                      {/* New Local Previews */}
+                      {newImages.map((item, idx) => (
+                        <div key={`new-${idx}`} className="relative group aspect-square">
+                          <img
+                            src={item.preview}
+                            className="w-full h-full object-cover rounded-xl border-2 border-dashed border-purple-500/50"
+                            alt="New"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-all rounded-xl flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveNewImage(idx)}
+                              className="p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all hover:scale-110"
+                              title="Remove"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="absolute top-2 left-2 flex gap-1">
+                            <span className="px-2 py-0.5 bg-blue-500 text-[9px] font-bold text-white rounded-full uppercase tracking-wider shadow-lg">New</span>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Add Button */}
+                      {extraImages.length + newImages.length < 10 && (
+                        <label className="aspect-square rounded-xl border-2 border-dashed border-white/10 hover:border-purple-500/50 hover:bg-purple-500/5 flex flex-col items-center justify-center cursor-pointer transition-all group active:scale-95">
+                          <div className="p-3 rounded-full bg-white/5 group-hover:bg-purple-500/10 transition-colors">
+                            <Plus className="w-6 h-6 text-gray-400 group-hover:text-purple-400" />
+                          </div>
+                          <span className="text-xs text-gray-500 mt-2 font-medium group-hover:text-purple-400">Add Photos</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={handleAddImage}
+                          />
+                        </label>
+                      )}
+                    </div>
+                    
+                    {imageError && (
+                      <p className="text-sm text-red-400 font-medium animate-in shake-1 duration-300">{imageError}</p>
+                    )}
                   </div>
 
-                  <div className="relative group">
+                  <div className="relative group md:col-span-2">
                     <input
                       type="file"
                       accept=".pdf"
                       onChange={(e) => setPdfFile(e.target.files[0])}
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                     />
-                    <div className={`p-6 rounded-xl border-2 border-dashed transition-all ${pdfFile ? 'border-blue-500 bg-blue-500/5' : 'border-white/10 hover:border-blue-500/30'}`}>
+                    <div className={`p-8 rounded-xl border-2 border-dashed transition-all ${pdfFile ? 'border-blue-500 bg-blue-500/5' : 'border-white/10 hover:border-blue-500/30'}`}>
                       <div className="text-center">
                         <FileText className={`w-12 h-12 mx-auto mb-3 transition-colors ${pdfFile ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'}`} />
-                        <div className="text-sm text-gray-400 mb-1">
+                        <div className="text-base text-white font-medium mb-1">
                           {pdfFile ? pdfFile.name : 'Upload PDF Report'}
                         </div>
-                        <div className="text-xs text-gray-500">PDF up to 25MB</div>
+                        <div className="text-xs text-gray-500">
+                          {pdfFile ? `${(pdfFile.size / (1024 * 1024)).toFixed(2)} MB` : 'PDF up to 25MB'}
+                        </div>
+                        {editingEvent && formData.pdf_url && !pdfFile && (
+                          <div className="mt-3 flex items-center justify-center gap-2 text-xs text-blue-400 bg-blue-500/10 py-1.5 px-3 rounded-full border border-blue-500/20">
+                            <Globe className="w-3 h-3" />
+                            <span>Current PDF: {formData.pdf_url.split('/').pop().slice(0, 20)}...</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1437,7 +1576,7 @@ export default function AdminDashboard() {
                       <div className="flex justify-between items-center mb-4">
                         <div className="flex items-center gap-2">
                           <Users className="w-5 h-5 text-purple-400" />
-                          <span className="text-white font-medium">Attendance</span>
+                          <span className="text-white font-medium">Registered</span>
                         </div>
                         <span className="text-gray-400 text-sm">{selectedEvent.attendees} / {selectedEvent.capacity} spots filled</span>
                       </div>

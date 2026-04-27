@@ -13,3 +13,5 @@ requests
 cloudinary
 email-validator
 pydantic
+pypdf
+PyPDF2
